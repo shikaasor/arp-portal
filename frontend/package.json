@@ -1,0 +1,34 @@
+{
+  "name": "arp-portal-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "prebuild": "node scripts/check-routes.mjs",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "check:routes": "node scripts/check-routes.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run check:routes && npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "next": "16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.6",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}

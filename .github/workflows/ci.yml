@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read  # paths-filter lists PR files via the API
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      supabase: ${{ steps.filter.outputs.supabase }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            supabase:
+              - 'supabase/**'
+              - '.github/workflows/ci.yml'
+
+  frontend:
+    name: Frontend · routes, lint, typecheck, test, build
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      # Placeholders so the production build exercises the "connected" code path
+      # (including the /api proxy rewrite in next.config.ts).
+      API_ORIGIN: https://api.example.org
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Route contract (/api is reserved for the backend)
+        run: npm run check:routes
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: frontend/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/src/**') }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}-
+      - run: npm run build
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  backend:
+    name: Backend · lint, test
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      # Includes tests/test_routes.py: every route under /api, and the Vercel entrypoint imports.
+      - run: pytest --cov=app --cov-report=term-missing --cov-fail-under=80
+
+  backend-docker:
+    name: Backend · Docker image (portable fallback)
+    needs: [changes, backend]
+    if: needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          load: true
+          tags: arp-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          docker run -d --name api -p 8000:8000 arp-api:ci
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8000/health && exit 0
+            sleep 1
+          done
+          docker logs api
+          exit 1
+
+  migrations:
+    name: Supabase · validate migrations
+    needs: changes
+    if: needs.changes.outputs.supabase == 'true' || github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create minimal Supabase stubs (auth, storage, roles)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/stubs.sql
+      - name: Apply migrations (twice, to prove they are idempotent)
+        run: |
+          for pass in 1 2; do
+            for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -f "$f"; done
+          done
+      - name: Run schema assertions
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/assertions.sql

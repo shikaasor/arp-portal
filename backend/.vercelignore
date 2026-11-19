@@ -1,0 +1,9 @@
+.venv
+tests
+.pytest_cache
+.ruff_cache
+__pycache__
+.coverage
+.env
+Dockerfile
+.dockerignore

@@ -42,20 +42,19 @@ export function sniffType(bytes: Uint8Array): string | null {
   return null;
 }
 
-export async function validateFile(
-  file: File | null,
-  label: string,
-  allowed: string[],
-): Promise<string | null> {
-  if (!file || file.size === 0) return `${label} is required.`;
-  if (file.size > MAX_FILE_BYTES) return `${label} must be 5 MB or smaller.`;
+export type FileCheck = { ok: true; type: string } | { ok: false; error: string };
+
+/** Check size and the real file type (from its first bytes, not the browser's guess). */
+export async function inspectFile(file: File | null, label: string, allowed: string[]): Promise<FileCheck> {
+  if (!file || file.size === 0) return { ok: false, error: `${label} is required.` };
+  if (file.size > MAX_FILE_BYTES) return { ok: false, error: `${label} must be 5 MB or smaller.` };
   const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
   const detected = sniffType(head);
   if (!detected || !allowed.includes(detected)) {
     const kinds = allowed.map((t) => t.split("/")[1].replace("jpeg", "JPG").toUpperCase()).join(", ");
-    return `${label} must be a ${kinds} file.`;
+    return { ok: false, error: `${label} must be a ${kinds} file.` };
   }
-  return null;
+  return { ok: true, type: detected };
 }
 
 export type DetailsInput = Record<string, string>;

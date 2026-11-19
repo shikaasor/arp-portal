@@ -1,4 +1,3 @@
-import { config } from "./config";
 import { getSupabase } from "./supabase";
 
 export type ReviewEvent = { stage: string; action: string; note?: string | null; created_at: string };
@@ -59,6 +58,14 @@ export type Kyc = {
   expires_in: number;
 };
 
+export type DocumentKey = "identity_document" | "passport_photograph";
+
+export type UploadTickets = {
+  reference: string;
+  bucket: string;
+  uploads: Record<DocumentKey, { path: string; token: string; signed_url: string }>;
+};
+
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
     super(message);
@@ -72,7 +79,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
   let res: Response;
   try {
-    res = await fetch(`${config.apiBaseUrl}${path}`, { ...init, headers });
+    // Same-origin: next.config.ts proxies /api/* to the FastAPI project.
+    res = await fetch(path, { ...init, headers });
   } catch {
     throw new ApiError("Unable to reach the application service. Check your connection.", 0);
   }
@@ -84,22 +92,28 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+function json(body: unknown): RequestInit {
+  return { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+}
+
 export const api = {
   me: () => request<Me>("/api/me"),
-  submit: (form: FormData) =>
-    request<{ id: string; reference: string; stage: string }>("/api/applications", {
-      method: "POST",
-      body: form,
-    }),
+  startUpload: (files: Record<DocumentKey, { content_type: string; size: number }>) =>
+    request<UploadTickets>("/api/applications/uploads", json(files)),
+  submit: (body: {
+    reference: string;
+    details: Record<string, unknown>;
+    identity_document_path: string;
+    passport_photograph_path: string;
+  }) => request<{ id: string; reference: string; stage: string }>("/api/applications", json(body)),
   listApplications: (params: Record<string, string>) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request<{ items: AdminApplication[]; total: number }>(`/api/admin/applications?${qs}`);
   },
   review: (id: string, action: "approve" | "reject" | "request_information", note?: string) =>
-    request<AdminApplication>(`/api/admin/applications/${encodeURIComponent(id)}/review`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, note: note || null }),
-    }),
+    request<AdminApplication>(
+      `/api/admin/applications/${encodeURIComponent(id)}/review`,
+      json({ action, note: note || null }),
+    ),
   kyc: (id: string) => request<Kyc>(`/api/admin/applications/${encodeURIComponent(id)}/kyc`),
 };

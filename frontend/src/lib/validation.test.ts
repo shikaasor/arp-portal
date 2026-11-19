@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOn, sniffType, validateDetails, validateIdNumber, wordCount } from "./validation";
+import { ageOn, inspectFile, sniffType, validateDetails, validateIdNumber, wordCount } from "./validation";
 
 const today = new Date("2026-11-19T12:00:00");
 const valid = {
@@ -42,5 +42,14 @@ describe("validation", () => {
     expect(sniffType(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]))).toBe("application/pdf");
     expect(sniffType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
     expect(sniffType(new Uint8Array([1, 2, 3]))).toBeNull();
+  });
+
+  it("inspects files by content, not name", async () => {
+    const pdf = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], "id.jpg", { type: "image/jpeg" });
+    expect(await inspectFile(pdf, "ID", ["application/pdf"])).toEqual({ ok: true, type: "application/pdf" });
+    expect(await inspectFile(pdf, "Photo", ["image/jpeg", "image/png"])).toMatchObject({ ok: false });
+    expect(await inspectFile(new File([], "x"), "ID", ["application/pdf"])).toMatchObject({ ok: false });
+    const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "big.pdf");
+    expect(await inspectFile(big, "ID", ["application/pdf"])).toMatchObject({ error: "ID must be 5 MB or smaller." });
   });
 });

@@ -22,7 +22,8 @@ class FakeRepo:
         self.applications: dict[str, dict] = {}
         self.kyc: dict[str, dict] = {}
         self.events: list[dict] = []
-        self.files: dict[str, tuple[bytes, str]] = {}
+        self.files: dict[str, bytes] = {}
+        self.issued: list[str] = []
         self.fail_create = False
 
     # helpers
@@ -88,8 +89,16 @@ class FakeRepo:
     def get_kyc(self, application_id: str) -> dict | None:
         return self.kyc.get(application_id)
 
-    def upload_file(self, path: str, data: bytes, content_type: str) -> None:
-        self.files[path] = (data, content_type)
+    def create_signed_upload(self, path: str) -> dict[str, str]:
+        self.issued.append(path)
+        return {"token": "tok-" + path, "signed_url": f"https://storage.example/{path}?token=t"}
+
+    def download_file(self, path: str) -> bytes | None:
+        return self.files.get(path)
+
+    # simulate the browser uploading straight to storage
+    def browser_upload(self, path: str, data: bytes) -> None:
+        self.files[path] = data
 
     def delete_files(self, paths: list[str]) -> None:
         for p in paths:
@@ -149,8 +158,42 @@ def valid_details(**overrides: Any) -> dict[str, Any]:
     return base
 
 
-def files(identity: bytes = PDF, photo: bytes = JPEG) -> dict:
+def declared(
+    identity_type: str = "application/pdf", photo_type: str = "image/jpeg", size: int = 1000
+) -> dict:
     return {
-        "identity_document": ("id.pdf", identity, "application/pdf"),
-        "passport_photograph": ("photo.jpg", photo, "image/jpeg"),
+        "identity_document": {"content_type": identity_type, "size": size},
+        "passport_photograph": {"content_type": photo_type, "size": size},
     }
+
+
+def apply(
+    client,
+    repo,
+    token="alice",
+    details=None,
+    identity: bytes = PDF,
+    photo: bytes = JPEG,
+    identity_type="application/pdf",
+    photo_type="image/jpeg",
+):
+    """Run the full browser flow: get upload URLs, upload to storage, submit."""
+    start = client.post(
+        "/api/applications/uploads", headers=auth(token), json=declared(identity_type, photo_type)
+    )
+    if start.status_code != 200:
+        return start
+    body = start.json()
+    up = body["uploads"]
+    repo.browser_upload(up["identity_document"]["path"], identity)
+    repo.browser_upload(up["passport_photograph"]["path"], photo)
+    return client.post(
+        "/api/applications",
+        headers=auth(token),
+        json={
+            "reference": body["reference"],
+            "details": details or valid_details(),
+            "identity_document_path": up["identity_document"]["path"],
+            "passport_photograph_path": up["passport_photograph"]["path"],
+        },
+    )

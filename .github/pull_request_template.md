@@ -8,4 +8,5 @@
 - [ ] New/changed form fields are mirrored in `frontend/src/lib/options.ts` **and** `backend/app/constants.py`
 - [ ] Schema changes are a **new** file in `supabase/migrations/` (never edit an applied migration)
 - [ ] No secrets, service-role keys, NIN/passport numbers or real applicant data committed
-- [ ] Checked the Netlify/Vercel deploy preview
+- [ ] No frontend routes under `/api` and no backend routes outside it (CI enforces this)
+- [ ] Checked the Vercel deploy preview(s)

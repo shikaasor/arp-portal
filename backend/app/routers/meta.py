@@ -6,13 +6,23 @@ from ..config import Settings, get_settings
 router = APIRouter(tags=["meta"])
 
 
-@router.get("/health")
-def health(settings: Settings = Depends(get_settings)) -> dict:
+def _health(settings: Settings) -> dict:
     return {
         "status": "ok",
         "service": "arp-api",
         "supabase_configured": settings.supabase_configured,
     }
+
+
+@router.get("/api/health")
+def health(settings: Settings = Depends(get_settings)) -> dict:
+    return _health(settings)
+
+
+# Bare /health is kept for container/platform health checks hitting the API host directly.
+@router.get("/health", include_in_schema=False)
+def root_health(settings: Settings = Depends(get_settings)) -> dict:
+    return _health(settings)
 
 
 @router.get("/api/options")

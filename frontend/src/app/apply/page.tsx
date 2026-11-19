@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { api } from "@/lib/api";
+import { api, type DocumentKey } from "@/lib/api";
 import {
   EDUCATION_LEVELS,
   GENDERS,
@@ -16,7 +16,13 @@ import {
   STAGE_LABELS,
   STATES,
 } from "@/lib/options";
-import { normaliseIdNumber, validateDetails, validateFile, wordCount } from "@/lib/validation";
+import { getSupabase } from "@/lib/supabase";
+import { inspectFile, normaliseIdNumber, validateDetails, wordCount } from "@/lib/validation";
+
+const DOCUMENTS: { key: DocumentKey; label: string; allowed: string[] }[] = [
+  { key: "identity_document", label: "Identity document", allowed: ["application/pdf", "image/jpeg", "image/png"] },
+  { key: "passport_photograph", label: "Passport photograph", allowed: ["image/jpeg", "image/png"] },
+];
 
 function Select({ label, name, options }: { label: string; name: string; options: readonly string[] }) {
   return (
@@ -82,28 +88,52 @@ export default function ApplyPage() {
     const details: Record<string, string> = {};
     for (const [k, v] of form.entries()) if (typeof v === "string") details[k] = v.trim();
 
-    const problem =
-      validateDetails(details) ??
-      (await validateFile(form.get("identity_document") as File, "Identity document", ["application/pdf", "image/jpeg", "image/png"])) ??
-      (await validateFile(form.get("passport_photograph") as File, "Passport photograph", ["image/jpeg", "image/png"]));
+    const problem = validateDetails(details);
     if (problem) return setMessage(problem);
 
+    const files = {} as Record<DocumentKey, { file: File; type: string }>;
+    for (const doc of DOCUMENTS) {
+      const file = form.get(doc.key) as File | null;
+      const check = await inspectFile(file, doc.label, doc.allowed);
+      if (!check.ok) return setMessage(check.error);
+      files[doc.key] = { file: file as File, type: check.type };
+    }
+
+    delete details.consent;
     const payload = {
       ...details,
       has_business: details.has_business === "Yes",
       identification_number: normaliseIdNumber(details.identification_number),
     };
-    delete (payload as Record<string, unknown>).consent;
-
-    const body = new FormData();
-    body.set("details", JSON.stringify(payload));
-    body.set("identity_document", form.get("identity_document") as File);
-    body.set("passport_photograph", form.get("passport_photograph") as File);
 
     setBusy(true);
-    setMessage("Uploading your documents and submitting…");
     try {
-      const res = await api.submit(body);
+      // 1. Ask the API for one-time upload URLs (it checks eligibility and file metadata).
+      setMessage("Preparing secure upload…");
+      const tickets = await api.startUpload({
+        identity_document: { content_type: files.identity_document.type, size: files.identity_document.file.size },
+        passport_photograph: { content_type: files.passport_photograph.type, size: files.passport_photograph.file.size },
+      });
+
+      // 2. Upload straight to the private storage bucket (files never pass through the API).
+      const storage = getSupabase()!.storage.from(tickets.bucket);
+      for (const doc of DOCUMENTS) {
+        setMessage(`Uploading ${doc.label.toLowerCase()}…`);
+        const ticket = tickets.uploads[doc.key];
+        const { error } = await storage.uploadToSignedUrl(ticket.path, ticket.token, files[doc.key].file, {
+          contentType: files[doc.key].type,
+        });
+        if (error) throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      // 3. Submit the application; the API verifies the uploaded files before saving.
+      setMessage("Submitting your application…");
+      const res = await api.submit({
+        reference: tickets.reference,
+        details: payload,
+        identity_document_path: tickets.uploads.identity_document.path,
+        passport_photograph_path: tickets.uploads.passport_photograph.path,
+      });
       setMessage(`Application submitted. Reference: ${res.reference}`);
       formEl.reset();
       await refresh();

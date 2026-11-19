@@ -6,11 +6,17 @@
 The application and review portal for the proposed **5,000 Youth Global Entrepreneurship
 Initiative** across the 19 Northern States.
 
-| Layer    | Stack                                             | Hosted on (suggested)      |
-| -------- | ------------------------------------------------- | -------------------------- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript     | Vercel **or** Netlify      |
-| API      | FastAPI (Python 3.12), Docker                      | Render (blueprint included) |
-| Data     | Supabase Postgres, Auth, and a private Storage bucket | Supabase                |
+A monorepo deployed as **two Vercel projects** from this one repo:
+
+| Layer    | Stack                                                 | Vercel project (root dir)   |
+| -------- | ----------------------------------------------------- | --------------------------- |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript         | `arp-portal` (`frontend`)   |
+| API      | FastAPI (Python 3.12) as one serverless function      | `arp-portal-api` (`backend`) |
+| Data     | Supabase Postgres, Auth, and a private Storage bucket | (Supabase)                  |
+
+**Routing:** the website forwards `/api/*` to the API, so everything is served from one
+domain. `/api` belongs to FastAPI only, and CI fails if either side breaks that rule (see
+[Routing contract](docs/DEPLOYMENT.md#the-routing-contract-how-api-paths-cant-clash)).
 
 ## Features
 
@@ -20,8 +26,10 @@ Initiative** across the 19 Northern States.
 - **Application form** covering personal, location, education, enterprise and identity
   sections. Validation runs in the browser and again on the API: NIN must be 11 digits, a
   passport number is one letter plus 8 digits, the business idea needs at least 30 words,
-  applicants must be 18 or older, and uploaded files are checked by their real file type
-  (up to 5 MB each).
+  and applicants must be 18 or older.
+- **Uploads go straight to storage:** documents are sent directly to a private Supabase
+  bucket through one-time signed URLs, which avoids Vercel's 4.5 MB request limit. The API
+  then checks each file's real type and size before saving the application.
 - **Status tracking**: a progress tracker (State → LGA → Ward → Approved) plus the review
   history and reviewer feedback.
 - **Review workspace** limited by role:
@@ -36,14 +44,17 @@ Initiative** across the 19 Northern States.
 ## Repository layout
 
 ```
-frontend/              Next.js app (deploy this to Vercel/Netlify)
-backend/               FastAPI app + Dockerfile + pytest suite
+frontend/              Next.js app            → Vercel project #1 (root: frontend)
+  next.config.ts       /api/* proxy to API_ORIGIN
+  scripts/check-routes.mjs   blocks frontend routes under /api
+backend/               FastAPI app            → Vercel project #2 (root: backend)
+  api/index.py         Vercel entrypoint; vercel.json routes everything to it
+  tests/               pytest suite (incl. routing-contract tests)
+  Dockerfile           portable fallback (tested in CI)
 supabase/migrations/   SQL migrations (source of truth for the database)
 supabase/snippets/     Handy SQL (e.g. assigning reviewer roles)
 supabase/tests/        Migration assertions run in CI
-docs/DEPLOYMENT.md     Step-by-step: Supabase → API → Vercel/Netlify → custom domain
-netlify.toml           Netlify build config (base = frontend)
-render.yaml            Render blueprint for the API
+docs/DEPLOYMENT.md     Step-by-step: Supabase → API project → web project → domain
 .github/workflows/     CI, CodeQL, Supabase migration deploy
 ```
 
@@ -60,19 +71,19 @@ cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 cp .env.example .env                                 # fill in SUPABASE_URL + service-role key
-uvicorn app.main:app --reload --port 8000            # docs at http://localhost:8000/docs
+uvicorn app.main:app --reload --port 8000            # docs at http://localhost:8000/api/docs
 
 # 3. Frontend
 cd ../frontend
 npm install
-cp .env.local.example .env.local                     # API URL + Supabase URL + anon key
-npm run dev                                          # http://localhost:3000
+cp .env.local.example .env.local                     # API_ORIGIN=http://localhost:8000 + Supabase
+npm run dev                                          # http://localhost:3000 (proxies /api → :8000)
 ```
 
 ### Quality checks (the same ones CI runs)
 
 ```bash
-cd frontend && npm run lint && npm run typecheck && npm test && npm run build
+cd frontend && npm run check && npm run build     # check = routes + lint + typecheck + tests
 cd backend  && ruff check . && ruff format --check . && pytest
 ```
 
@@ -80,18 +91,14 @@ cd backend  && ruff check . && ruff format --check . && pytest
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `ci.yml` | PRs, pushes to `main` | Frontend: lint, typecheck, unit tests, production build, `npm audit`. Backend: ruff, pytest (coverage ≥ 80%), Docker build plus a `/health` smoke test. Migrations: applied twice to Postgres 17 to prove they can safely re-run, then checked by the behavioural assertions. Jobs for parts of the repo a PR doesn't touch are skipped. |
+| `ci.yml` | PRs, pushes to `main` | Frontend: `/api` route check, lint, typecheck, unit tests, production build (with the proxy enabled), `npm audit`. Backend: ruff, pytest (coverage ≥ 80%, including the routing-contract tests and a Vercel entry-point import check), Docker build plus a `/health` smoke test. Migrations: applied twice to Postgres 17 to prove they can safely re-run, then checked by the behavioural assertions. Jobs for parts of the repo a PR doesn't touch are skipped. |
 | `codeql.yml` | PRs, `main`, weekly | Static security analysis for TypeScript, Python and the workflow files. |
 | `supabase-deploy.yml` | `supabase/migrations/**` changes on `main` | Runs `supabase db push` to production. Skips itself until the secrets are added. |
 | Dependabot | Weekly/monthly | Grouped update PRs for npm, pip, Docker and Actions. |
 
-**Deployments** come from the hosts' own Git integrations, so no deploy tokens are stored
-in GitHub:
-
-- **Vercel / Netlify** build `frontend/`. Every PR gets a preview URL and `main` goes to
-  production. Builds are skipped when nothing under `frontend/` changed.
-- **Render** builds `backend/Dockerfile` from `render.yaml` and redeploys on every push
-  to `main`. The `/health` check must pass before traffic switches over.
+**Deployments** come from Vercel's Git integration, so no deploy tokens are stored in
+GitHub. Both projects get a preview URL on every PR and deploy `main` to production. Each one
+rebuilds only when its own folder changes.
 
 Recommended: in **Settings → Branches**, protect `main` and require the `CI` checks to pass.
 

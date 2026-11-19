@@ -1,19 +1,12 @@
-import json
-
 import pytest
 
-from .conftest import auth, files, valid_details
+from .conftest import apply, auth
 
 
 @pytest.fixture
 def app_id(client, repo):
     repo.add_user("alice")
-    res = client.post(
-        "/api/applications",
-        headers=auth("alice"),
-        data={"details": json.dumps(valid_details())},
-        files=files(),
-    )
+    res = apply(client, repo)
     assert res.status_code == 201
     return res.json()["id"]
 

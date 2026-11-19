@@ -1,10 +1,8 @@
-import json
 import logging
 import secrets
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from .. import constants as c
 from ..config import Settings, get_settings
@@ -12,16 +10,26 @@ from ..deps import CurrentUser, get_current_user, get_repository
 from ..repository import Repository
 from ..schemas import (
     ApplicantApplication,
-    ApplicationDetails,
     MeResponse,
     Profile,
     ReviewEvent,
+    SubmitRequest,
     SubmitResponse,
+    UploadRequest,
+    UploadResponse,
+    UploadTicket,
 )
-from ..uploads import EXTENSIONS, read_validated_upload
+from ..uploads import (
+    check_declared_file,
+    check_submitted_path,
+    object_path,
+    verify_stored_file,
+)
 
 log = logging.getLogger("arp.applications")
 router = APIRouter(prefix="/api", tags=["applicant"])
+
+DOCUMENT_KEYS = ("identity_document", "passport_photograph")
 
 
 def new_reference() -> str:
@@ -31,6 +39,13 @@ def new_reference() -> str:
 def applicant_view(record: dict, repo: Repository) -> ApplicantApplication:
     history = [ReviewEvent(**e) for e in repo.list_events(record["id"])]
     return ApplicantApplication(**{**record, "history": history})
+
+
+def ensure_can_apply(user: CurrentUser, repo: Repository, settings: Settings) -> None:
+    if settings.require_email_verification and not user.auth.email_verified:
+        raise HTTPException(status_code=403, detail="Verify your email address before applying.")
+    if repo.get_application_for_user(user.id):
+        raise HTTPException(status_code=409, detail="You have already submitted an application.")
 
 
 @router.get("/me", response_model=MeResponse)
@@ -52,61 +67,66 @@ def me(
     )
 
 
+@router.post("/applications/uploads", response_model=UploadResponse)
+def start_upload(
+    body: UploadRequest,
+    user: CurrentUser = Depends(get_current_user),
+    repo: Repository = Depends(get_repository),
+    settings: Settings = Depends(get_settings),
+) -> UploadResponse:
+    """Step 1: issue one-time signed URLs so the browser uploads documents straight to storage."""
+    ensure_can_apply(user, repo, settings)
+    reference = new_reference()
+    uploads: dict[str, UploadTicket] = {}
+    for key in DOCUMENT_KEYS:
+        declared = getattr(body, key)
+        ext = check_declared_file(
+            key, declared.content_type, declared.size, settings.max_upload_bytes
+        )
+        path = object_path(user.id, reference, key, ext)
+        try:
+            ticket = repo.create_signed_upload(path)
+        except Exception as exc:
+            log.exception("Could not create signed upload URL (reference=%s)", reference)
+            raise HTTPException(
+                status_code=503, detail="Uploads are temporarily unavailable. Please try again."
+            ) from exc
+        uploads[key] = UploadTicket(path=path, **ticket)
+    return UploadResponse(
+        reference=reference, bucket=settings.supabase_storage_bucket, uploads=uploads
+    )
+
+
 @router.post("/applications", response_model=SubmitResponse, status_code=status.HTTP_201_CREATED)
 def submit_application(
-    details: str = Form(..., description="JSON-encoded ApplicationDetails"),
-    identity_document: UploadFile = File(...),
-    passport_photograph: UploadFile = File(...),
+    body: SubmitRequest,
     user: CurrentUser = Depends(get_current_user),
     repo: Repository = Depends(get_repository),
     settings: Settings = Depends(get_settings),
 ) -> SubmitResponse:
-    if settings.require_email_verification and not user.auth.email_verified:
-        raise HTTPException(status_code=403, detail="Verify your email address before applying.")
-    if repo.get_application_for_user(user.id):
-        raise HTTPException(status_code=409, detail="You have already submitted an application.")
-
-    try:
-        payload = ApplicationDetails.model_validate(json.loads(details))
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=422, detail="Invalid application data.") from exc
-    except ValidationError as exc:
-        first = exc.errors()[0]
-        message = str(first.get("msg", "Invalid application data.")).removeprefix("Value error, ")
-        field = ".".join(str(p) for p in first.get("loc", ()))
-        raise HTTPException(
-            status_code=422, detail=f"{field}: {message}" if field else message
-        ) from exc
-
-    files = {
-        "identity_document": read_validated_upload(
-            identity_document,
-            "Identity document",
-            c.DOCUMENT_TYPES["identity_document"],
-            settings.max_upload_bytes,
-        ),
-        "passport_photograph": read_validated_upload(
-            passport_photograph,
-            "Passport photograph",
-            c.DOCUMENT_TYPES["passport_photograph"],
-            settings.max_upload_bytes,
-        ),
+    """Step 2: verify the uploaded documents and record the application."""
+    ensure_can_apply(user, repo, settings)
+    reference = body.reference
+    paths = {
+        key: check_submitted_path(getattr(body, f"{key}_path"), user.id, reference, key)
+        for key in DOCUMENT_KEYS
     }
+    try:
+        for key, path in paths.items():
+            verify_stored_file(key, path, repo.download_file(path), settings.max_upload_bytes)
+    except HTTPException:
+        # The files are unusable: remove them so the applicant can simply retry.
+        _cleanup(repo, list(paths.values()), reference)
+        raise
 
-    reference = new_reference()
-    uploaded: list[str] = []
-    paths: dict[str, str] = {}
-    data = payload.model_dump(mode="json")
+    data = body.details.model_dump(mode="json")
     kyc = {
         "identification_type": data.pop("identification_type"),
         "identification_number": data.pop("identification_number"),
+        "identity_document_path": paths["identity_document"],
+        "passport_photograph_path": paths["passport_photograph"],
     }
     try:
-        for key, (blob, content_type) in files.items():
-            path = f"{user.id}/{reference}/{key}.{EXTENSIONS[content_type]}"
-            repo.upload_file(path, blob, content_type)
-            uploaded.append(path)
-            paths[key] = path
         created = repo.create_application(
             {
                 **data,
@@ -115,11 +135,7 @@ def submit_application(
                 "email": (user.auth.email or "").lower(),
                 "stage": c.STAGE_STATE,
             },
-            {
-                **kyc,
-                "identity_document_path": paths["identity_document"],
-                "passport_photograph_path": paths["passport_photograph"],
-            },
+            kyc,
         )
         repo.add_event(
             {
@@ -131,17 +147,18 @@ def submit_application(
                 "created_at": datetime.now(UTC).isoformat(),
             }
         )
-    except HTTPException:
-        raise
     except Exception as exc:
         # Never log or return applicant data / identity numbers.
         log.exception("Application submission failed (reference=%s)", reference)
-        try:
-            repo.delete_files(uploaded)
-        except Exception:
-            log.exception("Failed to clean up uploads for %s", reference)
         raise HTTPException(
             status_code=503, detail="Application service is temporarily unavailable."
         ) from exc
 
     return SubmitResponse(id=created["id"], reference=reference, stage=c.STAGE_STATE)
+
+
+def _cleanup(repo: Repository, paths: list[str], reference: str) -> None:
+    try:
+        repo.delete_files(paths)
+    except Exception:
+        log.exception("Failed to clean up uploads for %s", reference)

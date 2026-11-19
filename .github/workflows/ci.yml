@@ -30,18 +30,16 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-              - 'netlify.toml'
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
-              - 'render.yaml'
               - '.github/workflows/ci.yml'
             supabase:
               - 'supabase/**'
               - '.github/workflows/ci.yml'
 
   frontend:
-    name: Frontend · lint, typecheck, test, build
+    name: Frontend · routes, lint, typecheck, test, build
     needs: changes
     if: needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -50,8 +48,9 @@ jobs:
         working-directory: frontend
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # Placeholders so the production build exercises the "connected" code path.
-      NEXT_PUBLIC_API_BASE_URL: https://api.example.org
+      # Placeholders so the production build exercises the "connected" code path
+      # (including the /api proxy rewrite in next.config.ts).
+      API_ORIGIN: https://api.example.org
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
     steps:
@@ -62,6 +61,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Route contract (/api is reserved for the backend)
+        run: npm run check:routes
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -96,10 +97,11 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
+      # Includes tests/test_routes.py: every route under /api, and the Vercel entrypoint imports.
       - run: pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 
   backend-docker:
-    name: Backend · Docker image
+    name: Backend · Docker image (portable fallback)
     needs: [changes, backend]
     if: needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request'
     runs-on: ubuntu-latest

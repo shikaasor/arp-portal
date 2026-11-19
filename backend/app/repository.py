@@ -45,7 +45,8 @@ class Repository(Protocol):
     def add_event(self, event: dict[str, Any]) -> None: ...
     def list_events(self, application_id: str) -> list[dict[str, Any]]: ...
     def get_kyc(self, application_id: str) -> dict[str, Any] | None: ...
-    def upload_file(self, path: str, data: bytes, content_type: str) -> None: ...
+    def create_signed_upload(self, path: str) -> dict[str, str]: ...
+    def download_file(self, path: str) -> bytes | None: ...
     def delete_files(self, paths: list[str]) -> None: ...
     def signed_url(self, path: str, expires_in: int) -> str: ...
 
@@ -162,10 +163,15 @@ class SupabaseRepository:
         return res.data[0] if res.data else None
 
     # --- storage ----------------------------------------------------------------------------
-    def upload_file(self, path: str, data: bytes, content_type: str) -> None:
-        self.client.storage.from_(self.bucket).upload(
-            path, data, {"content-type": content_type, "upsert": "false"}
-        )
+    def create_signed_upload(self, path: str) -> dict[str, str]:
+        res = self.client.storage.from_(self.bucket).create_signed_upload_url(path)
+        return {"token": res["token"], "signed_url": res["signed_url"]}
+
+    def download_file(self, path: str) -> bytes | None:
+        try:
+            return self.client.storage.from_(self.bucket).download(path)
+        except Exception:
+            return None
 
     def delete_files(self, paths: list[str]) -> None:
         if paths:

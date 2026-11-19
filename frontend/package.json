@@ -7,12 +7,14 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-routes.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "check:routes": "node scripts/check-routes.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run check:routes && npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

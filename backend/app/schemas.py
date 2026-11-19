@@ -204,3 +204,35 @@ class KycResponse(BaseModel):
     identity_document_url: str
     passport_photograph_url: str
     expires_in: int
+
+
+REFERENCE_PATTERN = r"^ARP-[0-9A-F]{10}$"
+
+
+class DeclaredFile(BaseModel):
+    content_type: str = Field(max_length=100)
+    size: int = Field(ge=0)
+
+
+class UploadRequest(BaseModel):
+    identity_document: DeclaredFile
+    passport_photograph: DeclaredFile
+
+
+class UploadTicket(BaseModel):
+    path: str
+    token: str
+    signed_url: str
+
+
+class UploadResponse(BaseModel):
+    reference: str
+    bucket: str
+    uploads: dict[str, UploadTicket]
+
+
+class SubmitRequest(BaseModel):
+    reference: str = Field(pattern=REFERENCE_PATTERN)
+    details: ApplicationDetails
+    identity_document_path: str = Field(max_length=300)
+    passport_photograph_path: str = Field(max_length=300)

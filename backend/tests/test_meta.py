@@ -4,7 +4,7 @@ from app.main import create_app
 
 
 def test_health_works_without_configuration():
-    res = TestClient(create_app()).get("/health")
+    res = TestClient(create_app()).get("/api/health")
     assert res.status_code == 200
     assert res.json()["status"] == "ok"
 

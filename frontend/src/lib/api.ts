@@ -1,0 +1,105 @@
+import { config } from "./config";
+import { getSupabase } from "./supabase";
+
+export type ReviewEvent = { stage: string; action: string; note?: string | null; created_at: string };
+
+export type MyApplication = {
+  id: string;
+  reference: string;
+  full_name: string;
+  state: string;
+  lga: string;
+  ward: string;
+  stage: string;
+  feedback?: string | null;
+  created_at: string;
+  history: ReviewEvent[];
+};
+
+export type Profile = {
+  id: string;
+  email?: string | null;
+  role: "applicant" | "ward" | "lga" | "state" | "national";
+  state?: string | null;
+  lga?: string | null;
+  ward?: string | null;
+};
+
+export type Me = { profile: Profile; email_verified: boolean; application: MyApplication | null };
+
+export type AdminApplication = {
+  id: string;
+  reference: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  gender: string;
+  date_of_birth: string;
+  state: string;
+  lga: string;
+  ward: string;
+  education: string;
+  occupation: string;
+  sector: string;
+  has_business: boolean;
+  business_idea: string;
+  motivation: string;
+  referral_source: string;
+  stage: string;
+  feedback?: string | null;
+  created_at: string;
+};
+
+export type Kyc = {
+  reference: string;
+  identification_type: string;
+  identification_number: string;
+  identity_document_url: string;
+  passport_photograph_url: string;
+  expires_in: number;
+};
+
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const supabase = getSupabase();
+  const token = supabase ? (await supabase.auth.getSession()).data.session?.access_token : undefined;
+  const headers = new Headers(init.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  let res: Response;
+  try {
+    res = await fetch(`${config.apiBaseUrl}${path}`, { ...init, headers });
+  } catch {
+    throw new ApiError("Unable to reach the application service. Check your connection.", 0);
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = typeof body.detail === "string" ? body.detail : "Something went wrong. Please try again.";
+    throw new ApiError(detail, res.status);
+  }
+  return body as T;
+}
+
+export const api = {
+  me: () => request<Me>("/api/me"),
+  submit: (form: FormData) =>
+    request<{ id: string; reference: string; stage: string }>("/api/applications", {
+      method: "POST",
+      body: form,
+    }),
+  listApplications: (params: Record<string, string>) => {
+    const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
+    return request<{ items: AdminApplication[]; total: number }>(`/api/admin/applications?${qs}`);
+  },
+  review: (id: string, action: "approve" | "reject" | "request_information", note?: string) =>
+    request<AdminApplication>(`/api/admin/applications/${encodeURIComponent(id)}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, note: note || null }),
+    }),
+  kyc: (id: string) => request<Kyc>(`/api/admin/applications/${encodeURIComponent(id)}/kyc`),
+};

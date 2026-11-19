@@ -6,16 +6,17 @@
 The application and review portal for the proposed **5,000 Youth Global Entrepreneurship
 Initiative** across the 19 Northern States.
 
-A monorepo deployed as **two Vercel projects** from this one repo:
+A monorepo deployed as **one Vercel project** with [Vercel Services](https://vercel.com/docs/services):
 
-| Layer    | Stack                                                 | Vercel project (root dir)   |
-| -------- | ----------------------------------------------------- | --------------------------- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript         | `arp-portal` (`frontend`)   |
-| API      | FastAPI (Python 3.12) as one serverless function      | `arp-portal-api` (`backend`) |
-| Data     | Supabase Postgres, Auth, and a private Storage bucket | (Supabase)                  |
+| Layer    | Stack                                                 | Vercel service (root)   |
+| -------- | ----------------------------------------------------- | ----------------------- |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript         | `web` (`frontend/`)     |
+| API      | FastAPI (Python 3.12) as a Vercel Function            | `api` (`backend/`)      |
+| Data     | Supabase Postgres, Auth, and a private Storage bucket | (Supabase)              |
 
-**Routing:** the website forwards `/api/*` to the API, so everything is served from one
-domain. `/api` belongs to FastAPI only, and CI fails if either side breaks that rule (see
+**Routing:** the root `vercel.json` sends `/api/*` to FastAPI and everything else to Next.js,
+on one domain. Every deployment, PR previews included, has the frontend and API from the
+same commit. `/api` belongs to FastAPI only, and CI fails if either side breaks that rule (see
 [Routing contract](docs/DEPLOYMENT.md#the-routing-contract-how-api-paths-cant-clash)).
 
 ## Features
@@ -38,23 +39,23 @@ domain. `/api` belongs to FastAPI only, and CI fails if either side breaks that 
   - `national` reviewers see everything, can act at any active stage, and are the **only**
     role that can open identity documents. Those open through 5-minute signed URLs, and
     every view is logged.
-- **Preview mode**: if the environment variables are missing, the site still builds and runs
+- **Preview mode**: if the Supabase environment variables are missing, the site still builds and runs
   with clear banners. You can demo the design before the backend is set up.
 
 ## Repository layout
 
 ```
-frontend/              Next.js app            → Vercel project #1 (root: frontend)
-  next.config.ts       /api/* proxy to API_ORIGIN
+vercel.json            Vercel Services: web + api, and /api/* → api routing
+frontend/              Next.js app            → service `web`
+  next.config.ts       /api/* proxy to API_ORIGIN (local dev / outside Vercel only)
   scripts/check-routes.mjs   blocks frontend routes under /api
-backend/               FastAPI app            → Vercel project #2 (root: backend)
-  api/index.py         Vercel entrypoint; vercel.json routes everything to it
+backend/               FastAPI app            → service `api` (entrypoint app.main:app)
   tests/               pytest suite (incl. routing-contract tests)
   Dockerfile           portable fallback (tested in CI)
 supabase/migrations/   SQL migrations (source of truth for the database)
 supabase/snippets/     Handy SQL (e.g. assigning reviewer roles)
 supabase/tests/        Migration assertions run in CI
-docs/DEPLOYMENT.md     Step-by-step: Supabase → API project → web project → domain
+docs/DEPLOYMENT.md     Step-by-step: Supabase → Vercel project → domain
 .github/workflows/     CI, CodeQL, Supabase migration deploy
 ```
 
@@ -66,19 +67,27 @@ Prerequisites: Node 22+, Python 3.12+, and a Supabase project (free tier is fine
 # 1. Database: paste supabase/migrations/*.sql into the Supabase SQL editor
 #    (or: supabase link --project-ref <ref> && supabase db push)
 
-# 2. API
+# 2. One env file for both apps, in the repo root
+cp .env.example .env.local                           # fill in the Supabase URL and keys
+#    (or, once the Vercel project exists: vercel env pull .env.local, then add API_ORIGIN)
+
+# 3. API
 cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-cp .env.example .env                                 # fill in SUPABASE_URL + service-role key
 uvicorn app.main:app --reload --port 8000            # docs at http://localhost:8000/api/docs
 
-# 3. Frontend
-cd ../frontend
+# 4. Frontend (second terminal)
+cd frontend
 npm install
-cp .env.local.example .env.local                     # API_ORIGIN=http://localhost:8000 + Supabase
 npm run dev                                          # http://localhost:3000 (proxies /api → :8000)
 ```
+
+Both apps read the root `.env.local`. Real environment variables take priority over it, and
+an optional `backend/.env` or `frontend/.env.local` overrides it for one app only. Restart
+`npm run dev` after editing the root file: Next.js only watches its own env files.
+
+Or run both with production routing from the repo root: `vercel dev -L`.
 
 ### Quality checks (the same ones CI runs)
 
@@ -91,14 +100,14 @@ cd backend  && ruff check . && ruff format --check . && pytest
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `ci.yml` | PRs, pushes to `main` | Frontend: `/api` route check, lint, typecheck, unit tests, production build (with the proxy enabled), `npm audit`. Backend: ruff, pytest (coverage ≥ 80%, including the routing-contract tests and a Vercel entry-point import check), Docker build plus a `/health` smoke test. Migrations: applied twice to Postgres 17 to prove they can safely re-run, then checked by the behavioural assertions. Jobs for parts of the repo a PR doesn't touch are skipped. |
+| `ci.yml` | PRs, pushes to `main` | Frontend: `/api` route check, lint, typecheck, unit tests, production build, `npm audit`. Backend: ruff, pytest (coverage ≥ 80%, including the routing-contract tests and checks that the `vercel.json` entrypoint imports and `/api/*` is routed to FastAPI first), Docker build plus a `/health` smoke test. Migrations: applied twice to Postgres 17 to prove they can safely re-run, then checked by the behavioural assertions. Jobs for parts of the repo a PR doesn't touch are skipped. |
 | `codeql.yml` | PRs, `main`, weekly | Static security analysis for TypeScript, Python and the workflow files. |
 | `supabase-deploy.yml` | `supabase/migrations/**` changes on `main` | Runs `supabase db push` to production. Skips itself until the secrets are added. |
 | Dependabot | Weekly/monthly | Grouped update PRs for npm, pip, Docker and Actions. |
 
 **Deployments** come from Vercel's Git integration, so no deploy tokens are stored in
-GitHub. Both projects get a preview URL on every PR and deploy `main` to production. Each one
-rebuilds only when its own folder changes.
+GitHub. Every PR gets one preview URL containing both the frontend and the API, and `main`
+deploys to production.
 
 Recommended: in **Settings → Branches**, protect `main` and require the `CI` checks to pass.
 
@@ -121,7 +130,7 @@ update public.profiles set role = 'state', state = 'Kano' where email = 'reviewe
 - [ ] Turn on Supabase **CAPTCHA** (Auth → Bot protection) and set up custom SMTP so
       verification emails are delivered reliably.
 - [ ] Add rate limiting at the edge (Cloudflare rules) for `POST /api/applications`.
-- [ ] Turn on Supabase backups/PITR, and set up error monitoring (e.g. Sentry) for both apps.
+- [ ] Turn on Supabase backups/PITR, and set up error monitoring (e.g. Sentry) for both services.
 - [ ] Test access with separate applicant, ward, LGA, state and national accounts.
 
 ## License

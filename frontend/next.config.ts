@@ -1,13 +1,23 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type { NextConfig } from "next";
 
+// One env file for the whole repo: the root `.env.local` (see `.env.example`), shared with the
+// API. Next.js only reads env files from `frontend/`, so load the root one here. Values that
+// are already set (real environment, or a `frontend/.env*` file) are not overwritten.
+const rootEnvFile = resolve(process.cwd(), "..", ".env.local");
+if (existsSync(rootEnvFile)) process.loadEnvFile(rootEnvFile);
+
 /**
- * Monorepo routing contract (see docs/DEPLOYMENT.md):
- *   /api/*  → proxied to the FastAPI project (API_ORIGIN). Reserved: the frontend never defines
- *             routes under /api — `npm run check:routes` fails the build if it does.
+ * Routing contract (see docs/DEPLOYMENT.md):
+ *   /api/*  → the FastAPI service. Reserved: the frontend never defines routes under /api —
+ *             `npm run check:routes` fails the build if it does.
  *   all else → this Next.js app.
  *
- * API_ORIGIN is server-side only (not exposed to the browser), e.g.
- *   https://arp-portal-api.vercel.app   or   http://localhost:8000 for local dev.
+ * On Vercel, the root vercel.json sends /api/* to the FastAPI service before requests reach
+ * Next.js, so no proxy is needed there. API_ORIGIN is only for running outside Vercel's
+ * Services routing (e.g. `next dev` + uvicorn on :8000, or self-hosting): when set, Next.js
+ * proxies /api/* to it. Server-side only, e.g. http://localhost:8000.
  */
 const API_PREFIX = "/api";
 
@@ -27,6 +37,8 @@ function apiOrigin(): string | null {
 }
 
 const origin = apiOrigin();
+// Vercel sets VERCEL=1 at build time; there the API service shares this deployment's domain.
+const apiEnabled = Boolean(origin) || process.env.VERCEL === "1";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -39,14 +51,14 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  // Tells the browser bundle whether the API proxy is wired up (otherwise: preview mode).
-  env: { NEXT_PUBLIC_API_PROXY_ENABLED: origin ? "1" : "" },
+  // Tells the browser bundle whether /api/* is served (otherwise: preview mode).
+  env: { NEXT_PUBLIC_API_ENABLED: apiEnabled ? "1" : "" },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async rewrites() {
     if (!origin) return [];
-    // beforeFiles: the API always wins for /api/*, even over files in /public.
+    // Outside Vercel only. beforeFiles: the API always wins for /api/*, even over /public.
     return {
       beforeFiles: [{ source: `${API_PREFIX}/:path*`, destination: `${origin}${API_PREFIX}/:path*` }],
       afterFiles: [],

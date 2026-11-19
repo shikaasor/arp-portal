@@ -1,34 +1,43 @@
-# Deployment guide: Vercel monorepo
+# Deployment guide: one Vercel project
 
-One GitHub repo is deployed as **two Vercel projects**, plus Supabase:
+One GitHub repo is deployed as **one Vercel project** using
+[Vercel Services](https://vercel.com/docs/services), plus Supabase. The root `vercel.json`
+declares two services that build separately and deploy together:
 
-| Vercel project | Root directory | What it serves |
+| Service | Root | What it serves |
 | --- | --- | --- |
-| `arp-portal` | `frontend` | The website, and the public domain |
-| `arp-portal-api` | `backend` | FastAPI as one Python serverless function |
+| `web` | `frontend/` | Next.js: every path except `/api/*` |
+| `api` | `backend/` | FastAPI (`app.main:app`): `/api/*` |
 
 ```
-                         arewarevivalproject.org  (frontend project)
-Browser ──► /, /apply, /status, …  ─────────────► Next.js pages
-        ──► /api/*  ── rewrite (same origin) ───► arp-portal-api.vercel.app ──► Supabase Postgres
-        ──► Supabase Auth (sign-in, anon key)                                 (service-role key)
+                         arewarevivalproject.org  (one Vercel project, one deployment)
+Browser ──► /, /apply, /status, …  ─► web service (Next.js)
+        ──► /api/*  ────────────────► api service (FastAPI) ──► Supabase Postgres
+        ──► Supabase Auth (sign-in, anon key)                    (service-role key)
         ──► Supabase Storage (one-time signed upload URLs issued by the API)
 ```
+
+Every deployment, including each PR preview, contains the frontend **and** the API from the
+same commit. A preview URL tests both halves of a change together.
 
 ## The routing contract: how API paths can't clash
 
 | Path | Owner | Enforced by |
 | --- | --- | --- |
 | `/api/*` | **FastAPI only** | `frontend/scripts/check-routes.mjs` fails `npm run build` and CI if the frontend defines anything under `/api`. That covers `app/api`, route groups like `(x)/api`, `pages/api` and `public/api*`. |
-| every other path | **Next.js only** | `backend/tests/test_routes.py` fails CI if FastAPI adds a public route outside `/api/`. |
+| every other path | **Next.js only** | `backend/tests/test_routes.py` fails CI if FastAPI adds a public route outside `/api/`, or if `vercel.json` stops routing `/api/*` to the API service ahead of the frontend catch-all. |
 
-- The frontend forwards `/api/:path*` to `API_ORIGIN/api/:path*` (`frontend/next.config.ts`).
-  The forwarding runs *before* any of Next's own files are checked, so the API always wins
-  for `/api`.
-- The API docs are served at `/api/docs` and `/api/openapi.json`, so they work through the
-  public domain too.
+- The root `vercel.json` rewrites `/api/:path*` to the `api` service and everything else to
+  `web`. Vercel checks these rules in order, so `/api` always reaches FastAPI. The API
+  receives the **original path** (`/api/health`, not `/health`), which is why its routes
+  are declared with the `/api` prefix.
+- Once a request is routed to a service, it stays there: an unknown `/api/...` path is a
+  FastAPI 404, never a Next.js page.
+- The API docs are served at `/api/docs` and `/api/openapi.json`.
 - The browser calls the API on its own domain, so production needs no CORS setup and no
   API URL in the browser.
+- **Outside Vercel** (local `npm run dev`, or self-hosting), set `API_ORIGIN` and Next.js
+  proxies `/api/*` to it instead (`frontend/next.config.ts`). On Vercel, leave it unset.
 
 ## Why files upload straight to Supabase
 
@@ -55,9 +64,18 @@ of up to 5 MB each. So the files never pass through the API:
    - Site URL: `https://arp-portal.vercel.app` (switch it to the custom domain later).
    - Redirect URLs: `https://arp-portal.vercel.app/**`. For PR previews, also add
      `https://arp-portal-*-<your-vercel-team>.vercel.app/**`.
-4. **Authentication → Providers → Email**: keep "Confirm email" **on**.
-5. **Project settings → API**: copy the Project URL, the `anon`/publishable key and the
-   `service_role` key.
+4. **Authentication → Sign In / Providers** (under *Configuration*) → **Email**: keep
+   "Confirm email" **on**.
+5. Copy the project URL and keys. Supabase moves these pages around, so search the
+   dashboard for "API keys" or "Data API" if the paths below don't match.
+   - **Project Settings → Data API** (some dashboards: **Integrations → Data API**): the
+     Project URL (`https://<ref>.supabase.co`).
+   - **Project Settings → API Keys**: the **publishable** key (`sb_publishable_…`) for the
+     website, and a **secret** key (`sb_secret_…`) for the API. If you only see
+     **Create new API keys**, create them first. The legacy `anon` / `service_role` keys
+     (under **Legacy API keys**) also work, but Supabase is retiring them.
+   - The variable names stay the same: the publishable key goes in
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and the secret key in `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### Optional: automatic migrations from GitHub
 
@@ -66,52 +84,54 @@ Create a GitHub environment called `production`, then add these repository secre
 file in `supabase/migrations/` merged to `main` is applied by `supabase-deploy.yml`.
 **Never edit a migration that has already been applied. Add a new one.**
 
-## 2. Vercel project: API (`backend`)
+## 2. Vercel project
 
 1. **Add New → Project**, then import `shikaasor/arp-portal`.
-2. **Project name:** `arp-portal-api`. **Root Directory:** `backend`. **Framework Preset:** Other.
-   `backend/vercel.json` sends every request to `api/index.py`. Dependencies come from
-   `requirements.txt` and the Python version from `.python-version` (3.12).
-3. Environment variables (Production *and* Preview):
+2. **Project name:** `arp-portal`. **Root Directory:** the repository root (leave it empty).
+   **Framework Preset:** **Services**. (CLI: `vercel project update --framework services`.)
+   Vercel reads both services from the root `vercel.json`. The frontend installs with
+   `npm ci` and builds with `npm run build`. The API's dependencies come from
+   `backend/requirements.txt` and its Python version from `backend/.python-version` (3.12).
+3. Environment variables (Production *and* Preview). They are shared by both services:
 
-   | Name | Value |
-   | --- | --- |
-   | `SUPABASE_URL` | `https://<ref>.supabase.co` |
-   | `SUPABASE_SERVICE_ROLE_KEY` | service-role key (**secret**: mark it Sensitive) |
-   | `FRONTEND_ORIGINS` | `https://arp-portal.vercel.app`. This only matters when calling the API host directly; normal traffic is same-origin. |
+   | Name | Value | Used by |
+   | --- | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` | website and API |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable (or legacy anon) key | website |
+   | `SUPABASE_SERVICE_ROLE_KEY` | secret (or legacy service_role) key (**secret**: mark it Sensitive) | API |
+   | `NEXT_PUBLIC_SITE_URL` *(optional)* | `https://arewarevivalproject.org` | website |
 
-4. Deploy, then open `https://arp-portal-api.vercel.app/api/health`. It should show
+   Never give the service-role key a `NEXT_PUBLIC_` name. Only `NEXT_PUBLIC_*` values are
+   built into browser code, so the key stays server-side even though the web service can
+   see it. Don't set `API_ORIGIN` or `FRONTEND_ORIGINS` on Vercel: the site and API share
+   one domain. If the Supabase variables are missing, the site deploys in **preview mode**:
+   pages render, and sign-in and submission are turned off with a banner.
+4. Deploy, then open `https://arp-portal.vercel.app/api/health`. It should show
    `"supabase_configured": true`.
 
-## 3. Vercel project: website (`frontend`)
+If you deployed the earlier two-project setup, delete the `arp-portal-api` project after
+this one works, and remove the old `API_ORIGIN` variable.
 
-1. **Add New → Project**, then import the same repo again.
-2. **Project name:** `arp-portal`. **Root Directory:** `frontend`. Next.js is detected
-   automatically.
-3. Environment variables:
+### Build behaviour
 
-   | Name | Production | Preview |
-   | --- | --- | --- |
-   | `API_ORIGIN` | `https://arp-portal-api.vercel.app` | same (or a staging API) |
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co` | same |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon/publishable key | same |
-   | `NEXT_PUBLIC_SITE_URL` *(optional)* | `https://arewarevivalproject.org` | — |
+- Each push builds both services and deploys them as one deployment, so the frontend and
+  API can never be out of step. To skip builds for documentation-only commits, set
+  **Settings → Git → Ignored Build Step**, for example
+  `git diff --quiet HEAD^ HEAD -- frontend backend vercel.json`.
+- Every PR gets one preview URL, with its own frontend and API. `main` deploys to production.
+- `.vercelignore` keeps tests, local caches and the Docker fallback out of the upload.
+- The API runs as a Vercel Function on Fluid compute with Vercel's default time limit.
+  Every endpoint answers in well under a second, so there is no custom `maxDuration`.
 
-   `API_ORIGIN` must be an origin only, with no path and no trailing `/api`. The build fails
-   if it's malformed. If it's missing, the site deploys in **preview mode**: pages render, and
-   sign-in and submission are turned off with a banner.
-4. Deploy.
+### Local development
 
-### Monorepo build behaviour
-
-- Each project rebuilds only when its own folder changes (the `ignoreCommand` in each
-  `vercel.json`). Vercel's **Settings → Git → "Skip deployments when there are no changes to
-  the root directory"** does the same job if you prefer to set it there.
-- Every PR gets preview URLs for whichever project changed. `main` deploys to production.
-- By default, frontend previews call the **production** API. To test a backend change from a
-  frontend preview, set `API_ORIGIN` for that branch to the backend's branch URL
-  (`https://arp-portal-api-git-<branch>-<team>.vercel.app`) under **Settings → Environment
-  Variables → Preview → (branch)**.
+- **One env file:** both apps read `.env.local` in the repo root. Copy `.env.example`, or run
+  `vercel env pull .env.local` to fetch the project's Development values. This is the same
+  set of variables the Vercel project uses.
+- **Two terminals** (shown in the README): `uvicorn` on port 8000, and `npm run dev` with
+  `API_ORIGIN=http://localhost:8000` in the root `.env.local`.
+- **Or everything at once:** `vercel dev -L` from the repo root. This runs both services with
+  the same routing as production (`API_ORIGIN` isn't needed).
 
 ### Protect `main`
 
@@ -121,19 +141,17 @@ these checks: `Frontend · routes, lint, typecheck, test, build`, `Backend · li
 
 ## 4. Custom domain: `arewarevivalproject.org` on Cloudflare
 
-1. In the **frontend** project: **Settings → Domains**, add `arewarevivalproject.org` and
+1. In the project: **Settings → Domains**, add `arewarevivalproject.org` and
    `www.arewarevivalproject.org`.
 2. In Cloudflare DNS, add the records Vercel shows, with the proxy **off (DNS only, grey
    cloud)**. They're typically an apex `A` record to Vercel's IP and `www CNAME cname.vercel-dns.com`.
    Always use the values your dashboard shows. Don't touch MX, SPF, DKIM or DMARC records.
-3. The API needs **no** domain of its own: `https://arewarevivalproject.org/api/*` already
-   reaches it through the forwarding. (Optionally give the backend `api.arewarevivalproject.org`
-   and point `API_ORIGIN` at it.)
+3. The API needs **no** domain of its own: `https://arewarevivalproject.org/api/*` is the API.
 4. Update the Supabase Site URL and redirect URLs, and `NEXT_PUBLIC_SITE_URL`.
 
 ## 5. Go-live checks
 
-- [ ] `https://<site>/api/health` returns `supabase_configured: true` (this proves the forwarding works)
+- [ ] `https://<site>/api/health` returns `supabase_configured: true` (this proves `/api` reaches FastAPI)
 - [ ] `https://<site>/api/docs` loads the API docs
 - [ ] Sign up, verify the email and sign in
 - [ ] Submit an application with a **4–5 MB** photo. This proves uploads bypass the 4.5 MB limit.
@@ -153,4 +171,5 @@ deletes objects with no matching `application_kyc` row after 24 hours.
 
 `backend/Dockerfile` is kept and tested in CI. If you ever need a long-running server
 (e.g. background jobs), the same API runs unchanged on Render, Railway, Fly.io or Cloud Run.
-Point `API_ORIGIN` at it.
+Remove the `/api` rewrite from the root `vercel.json` and set `API_ORIGIN` on the Vercel
+project. Next.js then proxies `/api/*` to the external API.

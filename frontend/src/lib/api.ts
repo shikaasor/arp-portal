@@ -79,7 +79,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
   let res: Response;
   try {
-    // Same-origin: next.config.ts proxies /api/* to the FastAPI project.
+    // Same-origin: /api/* is the FastAPI service (vercel.json, or the API_ORIGIN proxy locally).
     res = await fetch(path, { ...init, headers });
   } catch {
     throw new ApiError("Unable to reach the application service. Check your connection.", 0);

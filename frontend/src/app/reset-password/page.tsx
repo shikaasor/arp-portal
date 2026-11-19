@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { getSupabase } from "@/lib/supabase";
+import { PageBanner } from "@/components/PageBanner";
 
 export default function ResetPassword() {
   const { session } = useAuth();
@@ -18,9 +19,9 @@ export default function ResetPassword() {
   }
 
   return (
-    <section>
-      <div className="eyebrow">ACCOUNT</div>
-      <h1>Choose a new password</h1>
+    <>
+    <PageBanner eyebrow="Account" title="Choose a new password" />
+    <section className="section narrowSection">
       <div className="panel narrow">
         {session ? (
           <form onSubmit={onSubmit}>
@@ -38,5 +39,6 @@ export default function ResetPassword() {
         )}
       </div>
     </section>
+    </>
   );
 }

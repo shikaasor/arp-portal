@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { PageBanner } from "@/components/PageBanner";
 
 export default function NotFound() {
   return (
-    <section>
-      <div className="eyebrow">PAGE NOT FOUND</div>
-      <h1>We couldn’t find that page.</h1>
+    <>
+    <PageBanner eyebrow="Page not found" title="We couldn’t find that page." />
+    <section className="section narrowSection">
       <Link className="button primary" href="/">
         Back to overview
       </Link>
     </section>
+    </>
   );
 }

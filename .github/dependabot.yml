@@ -10,6 +10,14 @@ updates:
       dev-tooling:
         dependency-type: development
         update-types: [minor, patch]
+    ignore:
+      # Majors that the toolchain doesn't support yet. Remove each rule once it does.
+      - dependency-name: "typescript"        # TS 7 (native compiler): not yet supported by Next.js
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"            # ESLint 10: eslint-config-next's plugins peer on ^9
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"       # keep in step with the Node runtime (22, see .nvmrc)
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: pip
     directory: /backend
     schedule: { interval: weekly, day: monday }
@@ -20,6 +28,11 @@ updates:
   - package-ecosystem: docker
     directory: /backend
     schedule: { interval: monthly }
+    ignore:
+      # Keep the image on the same Python as Vercel and CI (3.12, see backend/.python-version).
+      # Bump all three together deliberately rather than via Dependabot.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }

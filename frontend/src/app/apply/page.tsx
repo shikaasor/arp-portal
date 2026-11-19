@@ -18,6 +18,7 @@ import {
 } from "@/lib/options";
 import { getSupabase } from "@/lib/supabase";
 import { inspectFile, normaliseIdNumber, validateDetails, wordCount } from "@/lib/validation";
+import { PageBanner } from "@/components/PageBanner";
 
 const DOCUMENTS: { key: DocumentKey; label: string; allowed: string[] }[] = [
   { key: "identity_document", label: "Identity document", allowed: ["application/pdf", "image/jpeg", "image/png"] },
@@ -58,9 +59,9 @@ export default function ApplyPage() {
 
   if (me?.application) {
     return (
-      <section>
-        <div className="eyebrow">YOUR NEXT CHAPTER</div>
-        <h1>Application received</h1>
+      <>
+        <PageBanner eyebrow="Your next chapter" title="Application received" />
+        <section className="section narrowSection">
         <div className="panel">
           <p>
             You have already applied. Reference <b>{me.application.reference}</b> ·{" "}
@@ -70,7 +71,8 @@ export default function ApplyPage() {
             Track your application →
           </Link>
         </div>
-      </section>
+        </section>
+      </>
     );
   }
 
@@ -146,10 +148,11 @@ export default function ApplyPage() {
   }
 
   return (
-    <section>
-      <div className="eyebrow">YOUR NEXT CHAPTER</div>
-      <h1>Empowerment application</h1>
-      <p className="muted">Complete all sections. Identity documents are restricted to national reviewers.</p>
+    <>
+    <PageBanner eyebrow="Your next chapter" title={<>Empowerment <em>application</em></>}>
+      Complete all sections. Identity documents are seen only by national reviewers.
+    </PageBanner>
+    <section className="section narrowSection">
       {configured && !session && (
         <p className="notice">
           You’ll need an account to submit.{" "}
@@ -227,5 +230,6 @@ export default function ApplyPage() {
         </p>
       </form>
     </section>
+    </>
   );
 }

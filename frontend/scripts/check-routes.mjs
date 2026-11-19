@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fails if the frontend defines anything under /api, which is reserved for the FastAPI project.
+// Fails if the frontend defines anything under /api, which is reserved for the FastAPI service.
 // Catches app-router routes (including inside route groups like `(admin)/api`), pages-router
 // API routes, and static files in public/api.
 import { existsSync, readdirSync, statSync } from "node:fs";
@@ -33,7 +33,7 @@ for (const dir of ["src/app", "app", "src/pages", "pages", "public"]) walk(join(
 
 if (problems.length) {
   console.error(
-    `✖ /${RESERVED}/* is reserved for the FastAPI backend (proxied by next.config.ts).\n` +
+    `✖ /${RESERVED}/* is reserved for the FastAPI service (routed by the root vercel.json).\n` +
       `  Move these out of /${RESERVED}:\n` +
       problems.map((p) => `    - ${p}`).join("\n"),
   );

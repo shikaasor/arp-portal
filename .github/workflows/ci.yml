@@ -30,9 +30,11 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
+              - 'vercel.json'
               - '.github/workflows/ci.yml'
             backend:
               - 'backend/**'
+              - 'vercel.json'
               - '.github/workflows/ci.yml'
             supabase:
               - 'supabase/**'
@@ -49,7 +51,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # Placeholders so the production build exercises the "connected" code path
-      # (including the /api proxy rewrite in next.config.ts).
+      # (including the API_ORIGIN /api proxy rewrite used outside Vercel).
       API_ORIGIN: https://api.example.org
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
@@ -97,7 +99,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
-      # Includes tests/test_routes.py: every route under /api, and the Vercel entrypoint imports.
+      # Includes tests/test_routes.py: every route under /api, the vercel.json entrypoint imports,
+      # and /api/* is routed to this service before the frontend catch-all.
       - run: pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 
   backend-docker:

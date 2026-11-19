@@ -1,12 +1,22 @@
 from functools import lru_cache
+from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Local dev reads the repo-root `.env.local` shared with the frontend (see `.env.example`),
+# then an optional `backend/.env` override. Real environment variables win over both files.
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+ENV_FILES = (_BACKEND_DIR.parent / ".env.local", _BACKEND_DIR / ".env")
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILES, extra="ignore")
 
-    supabase_url: str = ""
+    # Falls back to the frontend's NEXT_PUBLIC_SUPABASE_URL, so the URL is set only once.
+    supabase_url: str = Field(
+        "", validation_alias=AliasChoices("supabase_url", "next_public_supabase_url")
+    )
     supabase_service_role_key: str = ""
     supabase_storage_bucket: str = "applicant-documents"
 

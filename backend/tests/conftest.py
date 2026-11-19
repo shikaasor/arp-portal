@@ -116,6 +116,7 @@ def repo() -> FakeRepo:
 @pytest.fixture
 def settings() -> Settings:
     return Settings(
+        _env_file=None,  # never pick up a developer's real .env.local
         supabase_url="https://x.supabase.co",
         supabase_service_role_key="k",
         require_email_verification=True,

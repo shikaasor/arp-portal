@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { ACTION_LABELS, REVIEW_PATH, STAGE_LABELS } from "@/lib/options";
+import { PageBanner } from "@/components/PageBanner";
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" });
@@ -67,10 +68,11 @@ export default function StatusPage() {
   }
 
   return (
-    <section>
-      <div className="eyebrow">STAY INFORMED</div>
-      <h1>My application status</h1>
+    <>
+    <PageBanner eyebrow="Stay informed" title={<>My application <em>status</em></>} />
+    <section className="section narrowSection">
       <div className="panel">{content}</div>
     </section>
+    </>
   );
 }

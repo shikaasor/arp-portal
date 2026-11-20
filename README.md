@@ -114,6 +114,26 @@ Recommended: in **Settings → Branches**, protect `main` and require the `CI` c
 See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full walkthrough, including the
 custom domain (`arewarevivalproject.org`) and Cloudflare DNS.
 
+## Design & images
+
+The look draws on Northern Nigeria: flag green, Durbar gold, Kano dye-pit indigo and mud-wall
+terracotta, with original SVG patterns in `frontend/public/patterns/` (an Arewa-knot motif and a
+zig-zag band inspired by Hausa wall relief and textile edging). Headlines use Bricolage Grotesque
+and body text uses Plus Jakarta Sans, loaded through `next/font`.
+
+Photos are Creative Commons images from Wikimedia Commons. They're credited on `/credits`, a
+page generated from the same image list, so credits can't fall out of sync with the photos.
+
+- **To add or replace a photo:** put the original in `frontend/scripts/image-src/` (not
+  committed), add an entry to `frontend/scripts/images.json` with its alt text and credit,
+  then run `python3 frontend/scripts/build-images.py`. Commit the generated
+  `public/img/*.webp` files and `src/lib/images.generated.ts`.
+- **Only use photos that allow commercial use** (CC0, CC BY or CC BY-SA), and always include
+  the credit fields.
+- **Render images with `<Img name="…" sizes="…" />`, not `next/image`.** Next's `/_next/image`
+  optimiser isn't served under Vercel Services routing (it returns 404), so images are
+  optimised ahead of time and served as plain static files.
+
 ## Assigning reviewers
 
 Reviewers sign up like anyone else. A Supabase admin then promotes them (see

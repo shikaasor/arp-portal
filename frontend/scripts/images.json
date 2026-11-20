@@ -1,0 +1,221 @@
+[
+  {
+    "key": "hero",
+    "file": "hero.jpg",
+    "alt": "Durbar horsemen in yellow robes and indigo turbans riding decorated horses",
+    "widths": [
+      640,
+      960,
+      1280,
+      1920
+    ],
+    "title": "Durbar Riders",
+    "creator": "Ummigarba",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=129146737"
+  },
+  {
+    "key": "durbar",
+    "file": "durbar.jpg",
+    "alt": "Horsemen in red and white regalia at the Zaria Durbar",
+    "widths": [
+      640,
+      1200,
+      1920
+    ],
+    "title": "Ayo Adewunmi - Zaria Durbar",
+    "creator": "Ayo Adewunmi",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=45218032"
+  },
+  {
+    "key": "dyepit",
+    "file": "dyepit.jpg",
+    "alt": "Hands working cloth in a traditional indigo dye pit",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "Dye pit",
+    "creator": "Sadiq Mustapha",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=138939353"
+  },
+  {
+    "key": "adire",
+    "file": "adire.jpg",
+    "alt": "Indigo-dyed adire cloth held up beside the dye pits in Kano",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "Kano City Dye Pit (6)",
+    "creator": "DipoTayo",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=82743752",
+    "creator_url": "https://commons.wikimedia.org/wiki/User:DipoTayo"
+  },
+  {
+    "key": "zaria",
+    "file": "zaria.jpg",
+    "alt": "The colourfully painted gate of the Emir of Zaria's palace",
+    "widths": [
+      640,
+      1200,
+      1920
+    ],
+    "title": "Zaria Emir's palace gate",
+    "creator": "Shiraz Chakera",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=4899432",
+    "creator_url": "https://www.flickr.com/photos/shirazc"
+  },
+  {
+    "key": "katsina",
+    "file": "katsina.jpg",
+    "alt": "The red and green façade of the Emir of Katsina's palace",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "SAN 8439 (Katsina Emir Palace)",
+    "creator": "SMMIMAGES",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=116902678",
+    "creator_url": "https://commons.wikimedia.org/wiki/User:SMMIMAGES"
+  },
+  {
+    "key": "market",
+    "file": "market.jpg",
+    "alt": "Bowls of spices and herbs for sale at Kurmi Market, Kano",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "Sandalwood and incense materials at Kurmi Market Kano",
+    "creator": "Fatima Bukar",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=55673410"
+  },
+  {
+    "key": "weaver",
+    "file": "weaver.jpg",
+    "alt": "A woman in white weaving cloth on a traditional upright loom",
+    "widths": [
+      400,
+      800,
+      1200
+    ],
+    "title": "A woman weaving on a Loom North Central Nigeria",
+    "creator": "Raj Enee",
+    "license": "CC0 1.0 (public domain)",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=146646352",
+    "crop": "0,0.08,1,0.75"
+  },
+  {
+    "key": "rice",
+    "file": "rice.jpg",
+    "alt": "Two women walking beside a green rice field under a blue sky in Niger State",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "Rice Field Kateregi, Niger state Nigeria",
+    "creator": "OtuNwachinemere",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=109680083",
+    "creator_url": "https://commons.wikimedia.org/wiki/User:OtuNwachinemere"
+  },
+  {
+    "key": "onions",
+    "file": "onions.jpg",
+    "alt": "A bowl piled with freshly harvested red onions",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "ONIONS farmed in North Central Nigeria",
+    "creator": "Eunice Ameh",
+    "license": "CC0 1.0 (public domain)",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=162555810",
+    "creator_url": "https://commons.wikimedia.org/wiki/User:Eunice_Ameh"
+  },
+  {
+    "key": "solar",
+    "file": "solar.jpg",
+    "alt": "Solar panels installed in Minna, Niger State",
+    "widths": [
+      480,
+      800,
+      1200
+    ],
+    "title": "Solar Panel at the Fati Lami Abubakar Institute for Legal and Administrative Studies, FLAILAS, Minna, Niger State Nigeria",
+    "creator": "InfantjournalistMMB",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=177723087"
+  },
+  {
+    "key": "jos",
+    "file": "jos.jpg",
+    "alt": "Golden sunrise over the hills of the Jos Plateau",
+    "widths": [
+      960,
+      1600,
+      1920
+    ],
+    "title": "Sunrise over Jos Plateau 01",
+    "creator": "Shadygaz",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "source_url": "https://commons.wikimedia.org/w/index.php?curid=149426246",
+    "creator_url": "https://commons.wikimedia.org/wiki/User:Shadygaz"
+  },
+  {
+    "key": "logo",
+    "file": "logo.jpg",
+    "crop": "0.17,0.15,0.66,0.85",
+    "widths": [
+      96,
+      192
+    ],
+    "quality": 82,
+    "alt": "Arewa Revival Project logo"
+  },
+  {
+    "key": "brief",
+    "file": "brief.jpg",
+    "widths": [
+      480,
+      800,
+      1117
+    ],
+    "alt": "Original empowerment programme brief"
+  },
+  {
+    "key": "seal",
+    "file": "seal.png",
+    "widths": [
+      96,
+      192
+    ],
+    "quality": 85,
+    "alt": "Seal of the President of the Senate, Federal Republic of Nigeria"
+  }
+]

@@ -51,6 +51,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // The /_next/image optimiser is not served under Vercel Services routing (it 404s), so images
+  // are pre-optimised by scripts/build-images.py and served as static files instead.
+  images: { unoptimized: true },
   // Tells the browser bundle whether /api/* is served (otherwise: preview mode).
   env: { NEXT_PUBLIC_API_ENABLED: apiEnabled ? "1" : "" },
   async headers() {

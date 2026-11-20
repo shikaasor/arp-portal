@@ -34,3 +34,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Full-size image originals (re-downloadable; see frontend/scripts/images.json)
+frontend/scripts/image-src/

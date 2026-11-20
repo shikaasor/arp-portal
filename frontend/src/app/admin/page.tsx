@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api, type AdminApplication, type Kyc } from "@/lib/api";
 import { ROLE_STAGE, STAGE_LABELS, STATES } from "@/lib/options";
+import { PageBanner } from "@/components/PageBanner";
 
 const ACTIVE = ["state_review", "lga_review", "ward_review"];
 
@@ -215,11 +216,13 @@ export default function AdminPage() {
     );
 
   return (
-    <section>
-      <div className="eyebrow">REVIEW WORKSPACE</div>
-      <h1>Application dashboard</h1>
-      <p className="muted">Reviewers see only their assigned geography. Only national staff can access KYC documents.</p>
+    <>
+    <PageBanner eyebrow="Review workspace" title={<>Application <em>dashboard</em></>}>
+      Reviewers see only their assigned area. Only national staff can access KYC documents.
+    </PageBanner>
+    <section className="section">
       {body}
     </section>
+    </>
   );
 }

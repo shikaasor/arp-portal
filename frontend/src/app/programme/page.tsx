@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Img } from "@/components/Img";
+import { images } from "@/lib/images.generated";
 
 export const metadata: Metadata = { title: "Programme brief" };
 
@@ -57,6 +58,7 @@ export default function Programme() {
             <h2>His Excellency, Sen. Godswill Obot Akpabio, GCON</h2>
             <p className="muted">President of the Senate, Federal Republic of Nigeria</p>
           </div>
+          <Img name="summitGuest" sizes="(max-width: 600px) 90vw, 260px" className="patronCard" />
         </div>
 
         <div className="pillars">
@@ -72,6 +74,31 @@ export default function Programme() {
             </article>
           ))}
         </div>
+
+        <div className="summit">
+          <div className="summitText">
+            <p className="eyebrow">The launch summit · Kano, Nigeria</p>
+            <h2>Northern Youth Renewed Hope Mega March &amp; Summit</h2>
+            <p>
+              The programme launches at the Northern Youth Renewed Hope Mega March &amp; National Development Summit and
+              International Entrepreneurship Empowerment Programme 2026, organised by the Arewa Revival Project in
+              Kano under the leadership of His Excellency, President Bola Ahmed Tinubu, GCFR, with the President of the
+              Senate as Special Guest of Honour.
+            </p>
+            <p className="announceTheme light">
+              <span>Theme</span>
+              Connecting Northern youth to opportunities for national development and prosperity.
+            </p>
+            <p className="fine">Empowered youth, a greater Nigeria. The summit date will be announced soon.</p>
+          </div>
+          <a className="summitFlyer" href={images.summitFlyer.src} target="_blank" rel="noopener">
+            <Img name="summitFlyer" sizes="(max-width: 900px) 90vw, 34vw" />
+            <span>View the full flyer ↗</span>
+          </a>
+        </div>
+        <a className="summitBanner" href={images.summitBanner.src} target="_blank" rel="noopener">
+          <Img name="summitBanner" sizes="(max-width: 1240px) 100vw, 1180px" />
+        </a>
 
         <div className="briefLayout">
           <div>

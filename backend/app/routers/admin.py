@@ -29,7 +29,13 @@ def in_scope(user: CurrentUser, record: dict) -> bool:
 def can_review(user: CurrentUser, record: dict) -> bool:
     if record["stage"] not in c.ACTIVE_STAGES or not in_scope(user, record):
         return False
-    return user.role == c.ROLE_NATIONAL or c.ROLE_STAGE.get(user.role) == record["stage"]
+    if user.role == c.ROLE_NATIONAL or c.ROLE_STAGE.get(user.role) == record["stage"]:
+        return True
+    # A ward that isn't on the official list can't match any ward reviewer, so the LGA
+    # reviewer takes the ward stage for it.
+    return bool(
+        user.role == c.ROLE_LGA and record["stage"] == c.STAGE_WARD and record.get("ward_unlisted")
+    )
 
 
 @router.get("/applications", response_model=AdminList)

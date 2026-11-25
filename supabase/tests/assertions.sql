@@ -31,6 +31,10 @@ begin
   exception when check_violation then null;
   end;
 
+  -- Wards default to listed.
+  perform 1 from public.applications where id = app and ward_unlisted = false;
+  if not found then raise exception 'ward_unlisted should default to false'; end if;
+
   -- LGA/ward keys ignore case, spacing and punctuation.
   update public.applications set lga = ' NASARAWA ', ward = 'Gama-Ward' where id = app;
   perform 1 from public.applications

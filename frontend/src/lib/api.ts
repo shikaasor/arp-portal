@@ -9,6 +9,7 @@ export type MyApplication = {
   state: string;
   lga: string;
   ward: string;
+  ward_unlisted?: boolean;
   stage: string;
   feedback?: string | null;
   applicant_response?: string | null;
@@ -38,6 +39,8 @@ export type AdminApplication = {
   state: string;
   lga: string;
   ward: string;
+  /** The applicant's ward isn't on the official list; they typed it. */
+  ward_unlisted?: boolean;
   education: string;
   occupation: string;
   sector: string;

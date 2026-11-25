@@ -39,7 +39,8 @@ same commit. `/api` belongs to FastAPI only, and CI fails if either side breaks 
   [GRID3 NGA Operational Wards v4.0](https://data.grid3.org/datasets/GRID3::grid3-nga-operational-wards-v4-0/about),
   so both are stored with one spelling. Reviewers are matched by LGA and ward ignoring case,
   spacing and punctuation, and an LGA also matches its other common spellings (see
-  [Location data](#location-data)).
+  [Location data](#location-data)). An applicant whose ward is missing picks **My ward isn't
+  listed** and types it; the application is flagged and the LGA reviewer handles its ward stage.
 - **One application per person**: an identification number (NIN or passport) can only be used
   once, enforced by the API and a unique index.
 - **Review workspace** limited by role:
@@ -177,6 +178,20 @@ Update `SERVICE` in the script if GRID3 publishes the new version under a new ad
 portal spellings that GRID3 doesn't list as alternatives live in `scripts/geo_aliases.json`;
 add one there if a rename would strand existing applications or reviewer assignments. Then run
 the tests, which pin the counts.
+
+### Wards that aren't on the list
+
+If an applicant's ward is missing, they choose **My ward isn't listed** and type it. The API
+stores what they typed with `ward_unlisted = true` (migration `20261125120000_unlisted_wards.sql`).
+A typed name that matches a listed ward (ignoring case and punctuation) is stored from the list
+instead, unflagged. No ward reviewer can be matched to an unlisted ward, so the **LGA reviewer**
+for that LGA reviews it at the ward stage; the review workspace shows a "Ward not on list" tag.
+These flagged rows are also a useful check when GRID3 publishes an update:
+
+```sql
+select state, lga, ward, count(*) from public.applications
+where ward_unlisted group by 1, 2, 3 order by 1, 2, 3;
+```
 
 ## Before accepting real applications
 

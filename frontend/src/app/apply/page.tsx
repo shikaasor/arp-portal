@@ -22,6 +22,9 @@ import { getSupabase } from "@/lib/supabase";
 import { inspectFile, normaliseIdNumber, validateDetails, wordCount } from "@/lib/validation";
 import { PageBanner } from "@/components/PageBanner";
 
+/** Value of the ward option for applicants whose ward isn't on the official list. */
+const UNLISTED_WARD = "__unlisted__";
+
 const DOCUMENTS: { key: DocumentKey; label: string; allowed: string[] }[] = [
   { key: "identity_document", label: "Identity document", allowed: ["application/pdf", "image/jpeg", "image/png"] },
   { key: "passport_photograph", label: "Passport photograph", allowed: ["image/jpeg", "image/png"] },
@@ -60,6 +63,7 @@ export default function ApplyPage() {
   const [words, setWords] = useState(0);
   const [state, setState] = useState("");
   const [lga, setLga] = useState("");
+  const [ward, setWard] = useState("");
 
   if (me?.application) {
     return (
@@ -106,8 +110,12 @@ export default function ApplyPage() {
     }
 
     delete details.consent;
+    const wardUnlisted = details.ward === UNLISTED_WARD;
+    if (wardUnlisted) details.ward = details.ward_other ?? "";
+    delete details.ward_other;
     const payload = {
       ...details,
+      ward_unlisted: wardUnlisted,
       has_business: details.has_business === "Yes",
       identification_number: normaliseIdNumber(details.identification_number),
     };
@@ -144,6 +152,7 @@ export default function ApplyPage() {
       formEl.reset();
       setState("");
       setLga("");
+      setWard("");
       await refresh();
       router.push("/status");
     } catch (err) {
@@ -189,6 +198,7 @@ export default function ApplyPage() {
               onChange={(e) => {
                 setState(e.target.value);
                 setLga("");
+                setWard("");
               }}
             >
               <option value="" disabled>
@@ -202,7 +212,16 @@ export default function ApplyPage() {
           <label>
             Local Government Area
             {/* Reviewers are matched by LGA, so it comes from the official list for the state. */}
-            <select name="lga" required value={lga} onChange={(e) => setLga(e.target.value)} disabled={!state}>
+            <select
+              name="lga"
+              required
+              value={lga}
+              onChange={(e) => {
+                setLga(e.target.value);
+                setWard("");
+              }}
+              disabled={!state}
+            >
               <option value="" disabled>
                 {state ? "Select…" : "Choose your state first"}
               </option>
@@ -214,15 +233,23 @@ export default function ApplyPage() {
           <label>
             Ward
             {/* Reviewers are matched by ward too, so it comes from the official list for the LGA. */}
-            <select name="ward" required defaultValue="" key={`${state}/${lga}`} disabled={!lga}>
+            <select name="ward" required value={ward} onChange={(e) => setWard(e.target.value)} disabled={!lga}>
               <option value="" disabled>
                 {lga ? "Select…" : "Choose your LGA first"}
               </option>
               {wardsFor(state, lga).map((w) => (
                 <option key={w}>{w}</option>
               ))}
+              {lga && <option value={UNLISTED_WARD}>My ward isn&rsquo;t listed</option>}
             </select>
           </label>
+          {ward === UNLISTED_WARD && (
+            <label>
+              Your ward
+              <input name="ward_other" required minLength={2} maxLength={100} placeholder="Type the name of your ward" />
+              <small className="muted">An LGA reviewer will confirm it.</small>
+            </label>
+          )}
         </div>
         <p className="fine">
           LGA and ward lists: GRID3 NGA Operational Wards v4.0 (CIESIN, Columbia University), CC BY-SA 4.0.{" "}

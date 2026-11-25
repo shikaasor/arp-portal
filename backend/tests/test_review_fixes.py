@@ -193,6 +193,47 @@ def test_misspelt_reviewer_assignment_is_refused_not_silently_empty(client, repo
     assert client.get("/api/admin/applications", headers=auth("lower")).status_code == 200
 
 
+def test_unlisted_ward_is_kept_as_typed_and_flagged(client, repo):
+    app_id = submit(client, repo, ward="  Sabon   Unguwa ", ward_unlisted=True)
+    record = repo.applications[app_id]
+    assert record["ward"] == "Sabon Unguwa"
+    assert record["ward_unlisted"] is True
+    me = client.get("/api/me", headers=auth("alice")).json()["application"]
+    assert me["ward_unlisted"] is True
+    # Too short to be a ward name
+    repo.add_user("bob")
+    details = valid_details(ward="-", ward_unlisted=True, identification_number="10987654321")
+    assert apply(client, repo, token="bob", details=details).status_code == 422
+
+
+def test_listed_ward_typed_as_unlisted_is_stored_from_the_list(client, repo):
+    app_id = submit(client, repo, ward="hotoro north", ward_unlisted=True)
+    record = repo.applications[app_id]
+    assert (record["ward"], record["ward_unlisted"]) == ("Hotoro North", False)
+
+
+def test_unlisted_ward_is_reviewed_by_the_lga_reviewer(client, repo, team):
+    app_id = submit(client, repo, ward="Sabon Unguwa", ward_unlisted=True)
+    review(client, "kano", app_id)
+    assert review(client, "nasarawa", app_id).json()["stage"] == c.STAGE_WARD
+
+    # No ward reviewer can match it...
+    assert client.get("/api/admin/applications", headers=auth("gama")).json()["total"] == 0
+    assert review(client, "gama", app_id).status_code == 404
+    # ...so the LGA reviewer sees it flagged and takes the ward stage.
+    listed = client.get("/api/admin/applications", headers=auth("nasarawa")).json()
+    assert [a["ward_unlisted"] for a in listed["items"]] == [True]
+    assert review(client, "nasarawa", app_id).json()["stage"] == c.STAGE_APPROVED
+
+
+def test_lga_reviewer_cannot_take_the_ward_stage_for_a_listed_ward(client, repo, team):
+    app_id = submit(client, repo)
+    review(client, "kano", app_id)
+    review(client, "nasarawa", app_id)
+    assert review(client, "nasarawa", app_id).status_code == 409
+    assert review(client, "gama", app_id).json()["stage"] == c.STAGE_APPROVED
+
+
 def test_ward_too_short_is_rejected(client, repo):
     repo.add_user("alice")
     assert apply(client, repo, details=valid_details(ward="--")).status_code == 422

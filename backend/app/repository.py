@@ -12,7 +12,7 @@ from .geo import geo_key, lga_match_keys
 
 APPLICATION_COLUMNS = (
     "id,reference,user_id,full_name,email,phone,gender,date_of_birth,address,state,lga,ward,"
-    "education,occupation,sector,has_business,business_idea,motivation,referral_source,"
+    "ward_unlisted,education,occupation,sector,has_business,business_idea,motivation,referral_source,"
     "stage,feedback,returns_to_stage,applicant_response,created_at,updated_at"
 )
 

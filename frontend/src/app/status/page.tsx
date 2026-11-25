@@ -132,7 +132,8 @@ export default function StatusPage() {
       <>
         <h2>{a.full_name}</h2>
         <p className="muted">
-          Reference <b>{a.reference}</b> · {a.state} / {a.lga} / {a.ward} · Submitted {fmt(a.created_at)}
+          Reference <b>{a.reference}</b> · {a.state} / {a.lga} / {a.ward}
+          {a.ward_unlisted && " (ward to be confirmed by your LGA reviewer)"} · Submitted {fmt(a.created_at)}
         </p>
         <span className={`pill stage-${a.stage}`}>{STAGE_LABELS[a.stage] ?? a.stage}</span>
         <ol className="tracker" aria-label="Review progress">

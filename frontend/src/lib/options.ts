@@ -1,9 +1,14 @@
+import lgaData from "./lgas.json";
+
 // Keep in sync with backend/app/constants.py (the API validates every value).
 export const STATES = [
   "Adamawa", "Bauchi", "Benue", "Borno", "Gombe", "Jigawa", "Kaduna", "Kano", "Katsina",
   "Kebbi", "Kogi", "Kwara", "Nasarawa", "Niger", "Plateau", "Sokoto", "Taraba", "Yobe",
   "Zamfara", "FCT Abuja",
 ] as const;
+
+/** Official LGAs per state. Identical copy of backend/app/lgas.json (a backend test checks this). */
+export const LGAS: Record<string, readonly string[]> = lgaData;
 
 export const GENDERS = ["Male", "Female"] as const;
 
@@ -57,6 +62,7 @@ export const ACTION_LABELS: Record<string, string> = {
   approve: "Stage approved",
   reject: "Not selected",
   request_information: "More information requested",
+  responded: "Response sent",
 };
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;

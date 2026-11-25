@@ -174,6 +174,7 @@ export default function AdminPage() {
             <div className="record" key={a.id}>
               <div className="recordHead">
                 <b>{a.full_name}</b> <span className={`pill stage-${a.stage}`}>{STAGE_LABELS[a.stage] ?? a.stage}</span>
+                {a.applicant_response && ACTIVE.includes(a.stage) && <span className="pill">Applicant responded</span>}
               </div>
               <p className="muted">
                 {a.reference} · {a.state} / {a.lga} / {a.ward} · {new Date(a.created_at).toLocaleDateString("en-NG")}
@@ -201,8 +202,14 @@ export default function AdminPage() {
                   <dd>{a.referral_source}</dd>
                   {a.feedback && (
                     <>
-                      <dt>Latest note</dt>
+                      <dt>Latest reviewer note</dt>
                       <dd>{a.feedback}</dd>
+                    </>
+                  )}
+                  {a.applicant_response && (
+                    <>
+                      <dt>Applicant&apos;s response</dt>
+                      <dd>{a.applicant_response}</dd>
                     </>
                   )}
                 </dl>

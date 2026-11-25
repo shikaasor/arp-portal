@@ -9,6 +9,7 @@ import {
   EDUCATION_LEVELS,
   GENDERS,
   ID_TYPES,
+  LGAS,
   MIN_BUSINESS_WORDS,
   OCCUPATIONS,
   REFERRAL_SOURCES,
@@ -56,6 +57,7 @@ export default function ApplyPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [words, setWords] = useState(0);
+  const [state, setState] = useState("");
 
   if (me?.application) {
     return (
@@ -138,6 +140,7 @@ export default function ApplyPage() {
       });
       setMessage(`Application submitted. Reference: ${res.reference}`);
       formEl.reset();
+      setState("");
       await refresh();
       router.push("/status");
     } catch (err) {
@@ -174,9 +177,30 @@ export default function ApplyPage() {
 
         <h2>Your location</h2>
         <div className="grid">
-          <Select label="State of residence" name="state" options={STATES} />
-          <Field label="Local Government Area" name="lga" />
-          <Field label="Ward" name="ward" />
+          <label>
+            State of residence
+            <select name="state" required value={state} onChange={(e) => setState(e.target.value)}>
+              <option value="" disabled>
+                Select…
+              </option>
+              {STATES.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Local Government Area
+            {/* Reviewers are matched by LGA, so it comes from the official list for the state. */}
+            <select name="lga" required defaultValue="" key={state} disabled={!state}>
+              <option value="" disabled>
+                {state ? "Select…" : "Choose your state first"}
+              </option>
+              {(LGAS[state] ?? []).map((l) => (
+                <option key={l}>{l}</option>
+              ))}
+            </select>
+          </label>
+          <Field label="Ward" name="ward" minLength={2} maxLength={100} />
         </div>
 
         <h2>Education &amp; enterprise</h2>

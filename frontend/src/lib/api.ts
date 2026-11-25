@@ -11,6 +11,7 @@ export type MyApplication = {
   ward: string;
   stage: string;
   feedback?: string | null;
+  applicant_response?: string | null;
   created_at: string;
   history: ReviewEvent[];
 };
@@ -46,6 +47,7 @@ export type AdminApplication = {
   referral_source: string;
   stage: string;
   feedback?: string | null;
+  applicant_response?: string | null;
   created_at: string;
 };
 
@@ -60,10 +62,11 @@ export type Kyc = {
 
 export type DocumentKey = "identity_document" | "passport_photograph";
 
+export type UploadTicket = { path: string; token: string; signed_url: string };
 export type UploadTickets = {
   reference: string;
   bucket: string;
-  uploads: Record<DocumentKey, { path: string; token: string; signed_url: string }>;
+  uploads: Record<DocumentKey, UploadTicket>;
 };
 
 export class ApiError extends Error {
@@ -106,6 +109,14 @@ export const api = {
     identity_document_path: string;
     passport_photograph_path: string;
   }) => request<{ id: string; reference: string; stage: string }>("/api/applications", json(body)),
+  /** Upload URLs for replacement documents sent with a response (only the ones requested). */
+  startResponseUpload: (files: Partial<Record<DocumentKey, { content_type: string; size: number }>>) =>
+    request<{ reference: string; bucket: string; uploads: Partial<Record<DocumentKey, UploadTicket>> }>(
+      "/api/applications/me/uploads",
+      json(files),
+    ),
+  respond: (body: { note: string; identity_document_path?: string; passport_photograph_path?: string }) =>
+    request<MyApplication>("/api/applications/me/respond", json(body)),
   listApplications: (params: Record<string, string>) => {
     const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString();
     return request<{ items: AdminApplication[]; total: number }>(`/api/admin/applications?${qs}`);

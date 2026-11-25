@@ -32,7 +32,13 @@ same commit. `/api` belongs to FastAPI only, and CI fails if either side breaks 
   bucket through one-time signed URLs, which avoids Vercel's 4.5 MB request limit. The API
   then checks each file's real type and size before saving the application.
 - **Status tracking**: a progress tracker (State → LGA → Ward → Approved) plus the review
-  history and reviewer feedback.
+  history and reviewer feedback. When a reviewer requests more information, the applicant
+  replies from the status page (optionally with replacement documents) and the application
+  goes back to the stage that asked.
+- **Location matching**: applicants pick their LGA from the official list for their state, and
+  reviewers are matched by LGA and ward ignoring case, spacing and punctuation.
+- **One application per person**: an identification number (NIN or passport) can only be used
+  once, enforced by the API and a unique index.
 - **Review workspace** limited by role:
   - `state`, `lga` and `ward` reviewers see only their assigned area, and can act only on
     applications at their own stage.

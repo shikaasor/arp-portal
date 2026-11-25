@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.deps import get_repository
+from app.geo import geo_key
 from app.main import create_app
 from app.repository import ApplicationFilter, AuthUser
 
@@ -54,6 +55,8 @@ class FakeRepo:
             **record,
             "id": str(uuid.uuid4()),
             "feedback": None,
+            "returns_to_stage": None,
+            "applicant_response": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -65,9 +68,11 @@ class FakeRepo:
         rows = [
             a
             for a in self.applications.values()
-            if all(
-                not getattr(f, k) or a[k] == getattr(f, k)
-                for k in ("state", "lga", "ward", "stage")
+            if all(not getattr(f, k) or a[k] == getattr(f, k) for k in ("state", "stage"))
+            # mirrors the generated lga_key / ward_key columns
+            and all(
+                not getattr(f, k) or geo_key(a[k]) == geo_key(getattr(f, k))
+                for k in ("lga", "ward")
             )
             and (not f.search or f.search.lower() in (a["full_name"] + a["reference"]).lower())
         ]
@@ -88,6 +93,15 @@ class FakeRepo:
 
     def get_kyc(self, application_id: str) -> dict | None:
         return self.kyc.get(application_id)
+
+    def update_kyc(self, application_id: str, values: dict) -> None:
+        self.kyc[application_id].update(values)
+
+    def identification_exists(self, identification_type: str, number: str) -> bool:
+        return any(
+            k["identification_type"] == identification_type and k["identification_number"] == number
+            for k in self.kyc.values()
+        )
 
     def create_signed_upload(self, path: str) -> dict[str, str]:
         self.issued.append(path)
@@ -143,7 +157,7 @@ def valid_details(**overrides: Any) -> dict[str, Any]:
         "phone": "+2348012345678",
         "address": "12 Ahmadu Bello Way",
         "state": "Kano",
-        "lga": "Nassarawa",
+        "lga": "Nasarawa",
         "ward": "Gama",
         "education": "HND / Bachelor’s Degree",
         "occupation": "Self-employed / Business Owner",

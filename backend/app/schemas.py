@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from . import constants as c
+from .geo import canonical_lga, geo_key, tidy
 
 PHONE_RE = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 NIN_RE = re.compile(r"^\d{11}$")
@@ -103,6 +104,19 @@ class ApplicationDetails(BaseModel):
         return v
 
     @model_validator(mode="after")
+    def _location(self) -> "ApplicationDetails":
+        # Reviewers are matched to applications by LGA and ward, so the LGA must be an official
+        # one (stored with its canonical spelling) and the ward must contain real characters.
+        lga = canonical_lga(self.state, self.lga)
+        if lga is None:
+            raise ValueError(f"Select a Local Government Area in {self.state}.")
+        self.lga = lga
+        self.ward = tidy(self.ward)
+        if len(geo_key(self.ward)) < 2:
+            raise ValueError("Enter your ward.")
+        return self
+
+    @model_validator(mode="after")
     def _identification(self) -> "ApplicationDetails":
         number = self.identification_number.replace(" ", "").upper()
         if self.identification_type == "NIN" and not NIN_RE.match(number):
@@ -131,6 +145,7 @@ class ApplicantApplication(BaseModel):
     ward: str
     stage: str
     feedback: str | None = None
+    applicant_response: str | None = None
     created_at: datetime
     history: list[ReviewEvent] = []
 
@@ -176,6 +191,7 @@ class AdminApplication(BaseModel):
     referral_source: str
     stage: str
     feedback: str | None = None
+    applicant_response: str | None = None
     created_at: datetime
 
 
@@ -236,3 +252,20 @@ class SubmitRequest(BaseModel):
     details: ApplicationDetails
     identity_document_path: str = Field(max_length=300)
     passport_photograph_path: str = Field(max_length=300)
+
+
+class ResponseUploadRequest(BaseModel):
+    """Replacement documents an applicant wants to send with a response (each optional)."""
+
+    identity_document: DeclaredFile | None = None
+    passport_photograph: DeclaredFile | None = None
+
+
+class RespondRequest(BaseModel):
+    """An applicant's answer to a "request information" review action."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    note: str = Field(min_length=5, max_length=2000)
+    identity_document_path: str | None = Field(default=None, max_length=300)
+    passport_photograph_path: str | None = Field(default=None, max_length=300)

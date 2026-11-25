@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from .. import constants as c
 from ..config import Settings, get_settings
 from ..deps import CurrentUser, get_repository, require_national, require_reviewer
+from ..geo import geo_key
 from ..repository import ApplicationFilter, Repository
 from ..schemas import AdminApplication, AdminList, KycResponse, ReviewRequest
 
@@ -18,9 +19,9 @@ def in_scope(user: CurrentUser, record: dict) -> bool:
         return True
     if record["state"] != user.state:
         return False
-    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and record["lga"] != user.lga:
+    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and geo_key(record["lga"]) != geo_key(user.lga):
         return False
-    return not (user.role == c.ROLE_WARD and record["ward"] != user.ward)
+    return not (user.role == c.ROLE_WARD and geo_key(record["ward"]) != geo_key(user.ward))
 
 
 def can_review(user: CurrentUser, record: dict) -> bool:
@@ -80,6 +81,8 @@ def review_application(
     values = {
         "stage": new_stage,
         "feedback": body.note or record.get("feedback"),
+        # Where the application goes back to once the applicant answers a request for info.
+        "returns_to_stage": current if new_stage == c.STAGE_NEEDS_INFO else None,
         "updated_at": now,
     }
     repo.update_application(application_id, values)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from .. import constants as c
 from ..config import Settings, get_settings
 from ..deps import CurrentUser, get_repository, require_national, require_reviewer
+from ..geo import geo_key, lga_match_keys
 from ..repository import ApplicationFilter, Repository
 from ..schemas import AdminApplication, AdminList, KycResponse, ReviewRequest
 
@@ -18,15 +19,23 @@ def in_scope(user: CurrentUser, record: dict) -> bool:
         return True
     if record["state"] != user.state:
         return False
-    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and record["lga"] != user.lga:
+    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and geo_key(record["lga"]) not in lga_match_keys(
+        user.state, user.lga
+    ):
         return False
-    return not (user.role == c.ROLE_WARD and record["ward"] != user.ward)
+    return not (user.role == c.ROLE_WARD and geo_key(record["ward"]) != geo_key(user.ward))
 
 
 def can_review(user: CurrentUser, record: dict) -> bool:
     if record["stage"] not in c.ACTIVE_STAGES or not in_scope(user, record):
         return False
-    return user.role == c.ROLE_NATIONAL or c.ROLE_STAGE.get(user.role) == record["stage"]
+    if user.role == c.ROLE_NATIONAL or c.ROLE_STAGE.get(user.role) == record["stage"]:
+        return True
+    # A ward that isn't on the official list can't match any ward reviewer, so the LGA
+    # reviewer takes the ward stage for it.
+    return bool(
+        user.role == c.ROLE_LGA and record["stage"] == c.STAGE_WARD and record.get("ward_unlisted")
+    )
 
 
 @router.get("/applications", response_model=AdminList)
@@ -80,6 +89,8 @@ def review_application(
     values = {
         "stage": new_stage,
         "feedback": body.note or record.get("feedback"),
+        # Where the application goes back to once the applicant answers a request for info.
+        "returns_to_stage": current if new_stage == c.STAGE_NEEDS_INFO else None,
         "updated_at": now,
     }
     repo.update_application(application_id, values)

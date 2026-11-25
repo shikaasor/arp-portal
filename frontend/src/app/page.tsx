@@ -87,6 +87,42 @@ export default function Home() {
         ))}
       </section>
 
+      {/* ---------- Official announcement (video) ---------- */}
+      <section className="announce pattern-knot">
+        <div className="announceInner">
+          <div className="announceVideo">
+            <video
+              controls
+              playsInline
+              preload="none"
+              poster="/video/arp-announcement-poster.webp"
+              width={854}
+              height={480}
+              aria-describedby="announce-summary"
+            >
+              <source src="/video/arp-announcement.mp4" type="video/mp4" />
+              Your browser can&apos;t play this video.{" "}
+              <a href="/video/arp-announcement.mp4">Download the announcement</a>.
+            </video>
+          </div>
+          <div className="announceText">
+            <p className="eyebrow light">Official announcement</p>
+            <h2>
+              All roads lead to <em>Kano.</em>
+            </h2>
+            <p id="announce-summary">
+              The Arewa Revival Project invites you to the maiden Northern Youth Renewed Hope Mega March &amp; National
+              Development Summit and International Entrepreneurship Empowerment Programme 2026.
+            </p>
+            <p className="announceTheme">
+              <span>Theme</span>
+              Connecting Northern youth to opportunities for national development and prosperity.
+            </p>
+            <p className="fineLight">The date will be officially announced soon.</p>
+          </div>
+        </div>
+      </section>
+
       {/* ---------- Heritage ---------- */}
       <section className="section heritage">
         <div className="heritageText">

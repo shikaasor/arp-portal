@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from . import constants as c
+from .geo import canonical_lga, canonical_ward, geo_key, tidy
 
 PHONE_RE = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 NIN_RE = re.compile(r"^\d{11}$")
@@ -30,6 +31,8 @@ class ApplicationDetails(BaseModel):
     state: str
     lga: str = Field(min_length=2, max_length=100)
     ward: str = Field(min_length=2, max_length=100)
+    # True when the applicant chose "My ward isn't listed" and typed their ward.
+    ward_unlisted: bool = False
     education: str
     occupation: str
     sector: str
@@ -103,6 +106,26 @@ class ApplicationDetails(BaseModel):
         return v
 
     @model_validator(mode="after")
+    def _location(self) -> "ApplicationDetails":
+        # Reviewers are matched to applications by LGA and ward, so both must come from the
+        # official lists (GRID3) and are stored with their canonical spelling.
+        lga = canonical_lga(self.state, self.lga)
+        if lga is None:
+            raise ValueError(f"Select a Local Government Area in {self.state}.")
+        ward = canonical_ward(self.state, lga, self.ward)
+        if ward is not None:
+            # On the list (even if typed as "not listed"): store the official spelling.
+            self.lga, self.ward, self.ward_unlisted = lga, ward, False
+            return self
+        if not self.ward_unlisted:
+            raise ValueError(f"Select a ward in {lga}.")
+        # Not on the list: keep what they typed, flagged so the LGA reviewer handles it.
+        self.lga, self.ward = lga, tidy(self.ward)
+        if len(geo_key(self.ward)) < 2:
+            raise ValueError("Type the name of your ward.")
+        return self
+
+    @model_validator(mode="after")
     def _identification(self) -> "ApplicationDetails":
         number = self.identification_number.replace(" ", "").upper()
         if self.identification_type == "NIN" and not NIN_RE.match(number):
@@ -129,8 +152,10 @@ class ApplicantApplication(BaseModel):
     state: str
     lga: str
     ward: str
+    ward_unlisted: bool = False
     stage: str
     feedback: str | None = None
+    applicant_response: str | None = None
     created_at: datetime
     history: list[ReviewEvent] = []
 
@@ -167,6 +192,7 @@ class AdminApplication(BaseModel):
     state: str
     lga: str
     ward: str
+    ward_unlisted: bool = False
     education: str
     occupation: str
     sector: str
@@ -176,6 +202,7 @@ class AdminApplication(BaseModel):
     referral_source: str
     stage: str
     feedback: str | None = None
+    applicant_response: str | None = None
     created_at: datetime
 
 
@@ -236,3 +263,20 @@ class SubmitRequest(BaseModel):
     details: ApplicationDetails
     identity_document_path: str = Field(max_length=300)
     passport_photograph_path: str = Field(max_length=300)
+
+
+class ResponseUploadRequest(BaseModel):
+    """Replacement documents an applicant wants to send with a response (each optional)."""
+
+    identity_document: DeclaredFile | None = None
+    passport_photograph: DeclaredFile | None = None
+
+
+class RespondRequest(BaseModel):
+    """An applicant's answer to a "request information" review action."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    note: str = Field(min_length=5, max_length=2000)
+    identity_document_path: str | None = Field(default=None, max_length=300)
+    passport_photograph_path: str | None = Field(default=None, max_length=300)

@@ -37,3 +37,6 @@ Thumbs.db
 
 # Full-size image originals (re-downloadable; see frontend/scripts/images.json)
 frontend/scripts/image-src/
+
+# Raw source media (photos, video, docs); web-ready versions live in frontend/public
+assets/

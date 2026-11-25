@@ -48,14 +48,17 @@ def check_declared_file(key: str, content_type: str, size: int, max_bytes: int) 
     return EXTENSIONS[content_type]
 
 
-def object_path(user_id: str, reference: str, key: str, ext: str) -> str:
-    return f"{user_id}/{reference}/{key}.{ext}"
+def object_path(user_id: str, reference: str, key: str, ext: str, version: str = "") -> str:
+    """Storage path for a document. Replacements sent later carry a random `version` suffix,
+    so they never collide with (or overwrite) the file a reviewer has already seen."""
+    suffix = f"-{version}" if version else ""
+    return f"{user_id}/{reference}/{key}{suffix}.{ext}"
 
 
 def check_submitted_path(path: str, user_id: str, reference: str, key: str) -> str:
     """Make sure a client-supplied path is one we could have issued to this user."""
     exts = "|".join(EXTENSIONS[t] for t in c.DOCUMENT_TYPES[key])
-    pattern = rf"{re.escape(user_id)}/{re.escape(reference)}/{key}\.({exts})"
+    pattern = rf"{re.escape(user_id)}/{re.escape(reference)}/{key}(-[0-9a-f]{{8}})?\.({exts})"
     if not re.fullmatch(pattern, path):
         raise HTTPException(status_code=422, detail=f"{LABELS[key]} upload is invalid.")
     return path

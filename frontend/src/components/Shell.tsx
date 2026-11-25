@@ -115,7 +115,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div>
             <h3>About</h3>
             <ul>
-              <li><Link href="/credits">Photo credits</Link></li>
+              <li><Link href="/credits">Gallery &amp; photo credits</Link></li>
               <li><a href="/api/docs">API documentation</a></li>
             </ul>
             <p className="fine">

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.deps import get_repository
+from app.geo import geo_key, lga_match_keys
 from app.main import create_app
 from app.repository import ApplicationFilter, AuthUser
 
@@ -54,6 +55,8 @@ class FakeRepo:
             **record,
             "id": str(uuid.uuid4()),
             "feedback": None,
+            "returns_to_stage": None,
+            "applicant_response": None,
             "created_at": now,
             "updated_at": now,
         }
@@ -65,10 +68,10 @@ class FakeRepo:
         rows = [
             a
             for a in self.applications.values()
-            if all(
-                not getattr(f, k) or a[k] == getattr(f, k)
-                for k in ("state", "lga", "ward", "stage")
-            )
+            if all(not getattr(f, k) or a[k] == getattr(f, k) for k in ("state", "stage"))
+            # mirrors the generated lga_key / ward_key columns
+            and (not f.lga or geo_key(a["lga"]) in lga_match_keys(f.state, f.lga))
+            and (not f.ward or geo_key(a["ward"]) == geo_key(f.ward))
             and (not f.search or f.search.lower() in (a["full_name"] + a["reference"]).lower())
         ]
         return rows[f.offset : f.offset + f.limit], len(rows)
@@ -88,6 +91,15 @@ class FakeRepo:
 
     def get_kyc(self, application_id: str) -> dict | None:
         return self.kyc.get(application_id)
+
+    def update_kyc(self, application_id: str, values: dict) -> None:
+        self.kyc[application_id].update(values)
+
+    def identification_exists(self, identification_type: str, number: str) -> bool:
+        return any(
+            k["identification_type"] == identification_type and k["identification_number"] == number
+            for k in self.kyc.values()
+        )
 
     def create_signed_upload(self, path: str) -> dict[str, str]:
         self.issued.append(path)

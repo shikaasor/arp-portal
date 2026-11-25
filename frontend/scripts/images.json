@@ -217,5 +217,189 @@
     ],
     "quality": 85,
     "alt": "Seal of the President of the Senate, Federal Republic of Nigeria"
+  },
+  {
+    "key": "summitFlyer",
+    "file": "assets/Images/northern youth mega march summit2.jpeg",
+    "widths": [
+      480,
+      800,
+      1104
+    ],
+    "alt": "Flyer for the Northern Youth Renewed Hope Mega March & National Development Summit and International Entrepreneurship Empowerment Programme 2026 in Kano, themed “Connecting Northern youth to opportunities for national development and prosperity”"
+  },
+  {
+    "key": "summitBanner",
+    "file": "assets/Images/northern youth mega march summit campaign banner.jpeg",
+    "widths": [
+      640,
+      960,
+      1280
+    ],
+    "alt": "Campaign banner for the Northern Youth Renewed Hope Mega March, featuring President Bola Ahmed Tinubu, Vice President Kashim Shettima, Senate President Godswill Akpabio, Kano State Governor Abba Kabir Yusuf and ARP Project Coordinator Hon. Muttaka Ahmed Ibrahim"
+  },
+  {
+    "key": "summitGuest",
+    "file": "assets/Images/northern youth mega march summit1.jpeg",
+    "widths": [
+      480,
+      800,
+      1117
+    ],
+    "alt": "Summit card honouring His Excellency Sen. Godswill Obot Akpabio, GCON, President of the Senate, as Special Guest of Honour"
+  },
+  {
+    "key": "senate1",
+    "file": "assets/Images/pic1.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "Senate President Godswill Akpabio receives the Par-Excellence Award plaque from an Arewa Revival Project representative"
+  },
+  {
+    "key": "senate2",
+    "file": "assets/Images/pic2.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The ARP delegation addresses the Senate President across the conference table"
+  },
+  {
+    "key": "senate3",
+    "file": "assets/Images/pic3.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "An ARP representative speaks to the Senate President during the courtesy visit"
+  },
+  {
+    "key": "senate4",
+    "file": "assets/Images/pic4.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President with members of the ARP delegation, holding the award plaque"
+  },
+  {
+    "key": "senate5",
+    "file": "assets/Images/pic5.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The ARP delegation seated with the Senate President in his conference room"
+  },
+  {
+    "key": "senate6",
+    "file": "assets/Images/pic6.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President and the ARP delegation pose for a group photograph"
+  },
+  {
+    "key": "senate7",
+    "file": "assets/Images/pic7.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President shakes hands with an ARP representative while holding the award plaque"
+  },
+  {
+    "key": "senate8",
+    "file": "assets/Images/pic8.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President speaks, with the Par-Excellence Award plaque on the table before him"
+  },
+  {
+    "key": "senate9",
+    "file": "assets/Images/pic9.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President speaks, holding the framed award certificate beside the plaque"
+  },
+  {
+    "key": "senate10",
+    "file": "assets/Images/pic10.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "Group photograph of the ARP delegation with the Senate President"
+  },
+  {
+    "key": "senate11",
+    "file": "assets/Images/pic11.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President receives a framed award certificate from an ARP representative"
+  },
+  {
+    "key": "senate12",
+    "file": "assets/Images/pic12.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President addresses the ARP delegation"
+  },
+  {
+    "key": "senate13",
+    "file": "assets/Images/pic13.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The Senate President and an ARP representative display the framed award certificate"
+  },
+  {
+    "key": "senate14",
+    "file": "assets/Images/pic14.jpeg",
+    "widths": [
+      480,
+      960,
+      1280
+    ],
+    "gallery": "senate",
+    "alt": "The ARP delegation and the Senate President stand together for a closing photograph"
   }
 ]

@@ -1,4 +1,8 @@
 -- Assign reviewer roles. Run in the Supabase SQL editor (the user must have signed up first).
+-- Spell the LGA and ward as on the application form, which uses the GRID3 lists in
+-- backend/app/geo.json (case, spacing and punctuation don't matter, and an LGA's older spellings
+-- listed under lga_aliases are accepted). An LGA or ward that isn't on the list is refused when
+-- the reviewer opens the review workspace, rather than silently showing nothing.
 
 -- National reviewer (sees everything, the only role that can open KYC documents)
 update public.profiles set role = 'national', state = null, lga = null, ward = null
@@ -12,7 +16,7 @@ where email = 'kano.reviewer@example.org';
 update public.profiles set role = 'lga', state = 'Kano', lga = 'Nassarawa', ward = null
 where email = 'nassarawa.reviewer@example.org';
 
--- Ward reviewer
+-- Ward reviewer (the ward must be one of that LGA's wards)
 update public.profiles set role = 'ward', state = 'Kano', lga = 'Nassarawa', ward = 'Gama'
 where email = 'gama.reviewer@example.org';
 

@@ -58,8 +58,10 @@ of up to 5 MB each. So the files never pass through the API:
 
 1. Create a project at <https://supabase.com/dashboard>. Choose a region close to Nigeria,
    e.g. London (`eu-west-2`) or Frankfurt.
-2. Apply the schema: paste `supabase/migrations/20261119000000_init.sql` into the **SQL
-   Editor** and run it. Or run `supabase link --project-ref <ref>` then `supabase db push`.
+2. Apply the schema: paste each file in `supabase/migrations/` into the **SQL Editor**, oldest
+   first, and run it. Or run `supabase link --project-ref <ref>` then `supabase db push`.
+   **Apply new migrations before deploying the code that needs them**: the API selects the
+   columns they add, so an older database makes every application request fail.
 3. **Authentication → URL configuration**
    - Site URL: `https://arp-portal.vercel.app` (switch it to the custom domain later).
    - Redirect URLs: `https://arp-portal.vercel.app/**`. For PR previews, also add

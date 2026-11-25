@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api, type AdminApplication, type Kyc } from "@/lib/api";
-import { ROLE_STAGE, STAGE_LABELS, STATES } from "@/lib/options";
+import { STAGE_LABELS, STATES } from "@/lib/options";
+import { ACTIVE_STAGES as ACTIVE, canReview } from "@/lib/review";
 import { PageBanner } from "@/components/PageBanner";
-
-const ACTIVE = ["state_review", "lga_review", "ward_review"];
 
 function ReviewControls({ app, onDone }: { app: AdminApplication; onDone: (a: AdminApplication) => void }) {
   const [note, setNote] = useState("");
@@ -119,8 +118,7 @@ export default function AdminPage() {
     return () => clearTimeout(t);
   }, [isReviewer, load]);
 
-  const canReview = (a: AdminApplication) =>
-    ACTIVE.includes(a.stage) && (role === "national" || ROLE_STAGE[role ?? ""] === a.stage);
+  const canAct = (a: AdminApplication) => canReview(role, a);
 
   let body: React.ReactNode;
   if (!configured) body = <div className="panel">The review workspace becomes available once the portal is connected.</div>;
@@ -174,6 +172,12 @@ export default function AdminPage() {
             <div className="record" key={a.id}>
               <div className="recordHead">
                 <b>{a.full_name}</b> <span className={`pill stage-${a.stage}`}>{STAGE_LABELS[a.stage] ?? a.stage}</span>
+                {a.applicant_response && ACTIVE.includes(a.stage) && <span className="pill">Applicant responded</span>}
+                {a.ward_unlisted && (
+                  <span className="pill" title="The applicant's ward isn't on the official list, so they typed it. The LGA reviewer handles the ward stage.">
+                    Ward not on list
+                  </span>
+                )}
               </div>
               <p className="muted">
                 {a.reference} · {a.state} / {a.lga} / {a.ward} · {new Date(a.created_at).toLocaleDateString("en-NG")}
@@ -201,14 +205,20 @@ export default function AdminPage() {
                   <dd>{a.referral_source}</dd>
                   {a.feedback && (
                     <>
-                      <dt>Latest note</dt>
+                      <dt>Latest reviewer note</dt>
                       <dd>{a.feedback}</dd>
+                    </>
+                  )}
+                  {a.applicant_response && (
+                    <>
+                      <dt>Applicant&apos;s response</dt>
+                      <dd>{a.applicant_response}</dd>
                     </>
                   )}
                 </dl>
               </details>
               {role === "national" && <KycPanel id={a.id} />}
-              {canReview(a) && <ReviewControls app={a} onDone={(u) => setRows((rs) => rs.map((r) => (r.id === u.id ? u : r)))} />}
+              {canAct(a) && <ReviewControls app={a} onDone={(u) => setRows((rs) => rs.map((r) => (r.id === u.id ? u : r)))} />}
             </div>
           ))}
         </div>

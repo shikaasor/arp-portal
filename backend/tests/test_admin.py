@@ -16,8 +16,8 @@ def reviewers(repo):
     repo.add_user("national", role="national")
     repo.add_user("kano", role="state", state="Kano")
     repo.add_user("kaduna", role="state", state="Kaduna")
-    repo.add_user("nassarawa", role="lga", state="Kano", lga="Nasarawa")
-    repo.add_user("gama", role="ward", state="Kano", lga="Nasarawa", ward="Gama")
+    repo.add_user("nassarawa", role="lga", state="Kano", lga="Nassarawa")
+    repo.add_user("gama", role="ward", state="Kano", lga="Nassarawa", ward="Gama")
     repo.add_user("incomplete", role="lga", state="Kano")
 
 

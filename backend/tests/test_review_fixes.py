@@ -6,7 +6,15 @@ from pathlib import Path
 import pytest
 
 from app import constants as c
-from app.geo import canonical_lga, geo_key, lgas_by_state
+from app.geo import (
+    canonical_lga,
+    canonical_ward,
+    geo_data,
+    geo_key,
+    lga_match_keys,
+    lgas_by_state,
+    wards_by_lga,
+)
 from app.repository import DuplicateIdentificationError
 
 from .conftest import PDF, PNG, apply, auth, valid_details
@@ -128,23 +136,29 @@ def test_response_needs_a_note_and_valid_paths(client, repo, team):
 
 
 # --- LGA / ward matching ----------------------------------------------------------------------
+# The `team` fixture assigns its LGA and ward reviewers with the portal's earlier spelling
+# "Nasarawa"; GRID3 spells Kano's LGA "Nassarawa". Both must keep working.
 
 
-def test_lga_must_be_official_and_is_stored_canonically(client, repo, team):
+def test_lga_and_ward_must_be_official_and_are_stored_canonically(client, repo, team):
     repo.add_user("alice")
     bad = apply(client, repo, details=valid_details(lga="Nowhere"))
     assert bad.status_code == 422
     assert "Local Government Area" in bad.json()["detail"]
     # An LGA from another state is refused too
     assert apply(client, repo, details=valid_details(lga="Zaria")).status_code == 422
+    # A ward that is not in the chosen LGA is refused
+    bad = apply(client, repo, details=valid_details(ward="Gwagwalada"))
+    assert bad.status_code == 422
+    assert "ward in Nassarawa" in bad.json()["detail"]
 
-    app_id = submit(client, repo, token="bob", lga="  nasarawa ", ward="  gama  ")
+    app_id = submit(client, repo, token="bob", lga="  nasarawa ", ward="  HOTORO-north  ")
     record = repo.applications[app_id]
-    assert record["lga"] == "Nasarawa"
-    assert record["ward"] == "gama"
+    assert record["lga"] == "Nassarawa"  # earlier spelling accepted, stored as GRID3's
+    assert record["ward"] == "Hotoro North"
 
 
-def test_ward_matching_ignores_case_and_spacing(client, repo, team):
+def test_reviewers_assigned_with_old_spelling_see_new_applications(client, repo, team):
     app_id = submit(client, repo, ward="GAMA ")
     review(client, "kano", app_id)
     review(client, "nasarawa", app_id)
@@ -153,13 +167,29 @@ def test_ward_matching_ignores_case_and_spacing(client, repo, team):
     assert review(client, "gama", app_id).json()["stage"] == c.STAGE_APPROVED
 
 
-def test_misspelt_reviewer_lga_is_refused_not_silently_empty(client, repo):
-    repo.add_user("typo", role="lga", state="Kano", lga="Nassarawa")
+def test_rows_saved_before_the_switch_still_match(client, repo, team):
+    # Saved with the old LGA spelling and a hand-typed ward, before the lists came from GRID3.
+    app_id = submit(client, repo)
+    repo.applications[app_id].update(lga="Nasarawa", ward="gama ", stage=c.STAGE_LGA)
+    repo.add_user("grid3", role="lga", state="Kano", lga="Nassarawa")
+    for token in ("nasarawa", "grid3"):
+        listed = client.get("/api/admin/applications", headers=auth(token)).json()
+        assert listed["total"] == 1, token
+    assert review(client, "grid3", app_id).json()["stage"] == c.STAGE_WARD
+    assert review(client, "gama", app_id).json()["stage"] == c.STAGE_APPROVED
+
+
+def test_misspelt_reviewer_assignment_is_refused_not_silently_empty(client, repo):
+    repo.add_user("typo", role="lga", state="Kano", lga="Nasarrawa")
     res = client.get("/api/admin/applications", headers=auth("typo"))
     assert res.status_code == 403
     assert "official list" in res.json()["detail"]
-    # Case differences in the assignment are fine
-    repo.add_user("lower", role="lga", state="Kano", lga="nasarawa")
+    repo.add_user("badward", role="ward", state="Kano", lga="Nassarawa", ward="Gamma")
+    res = client.get("/api/admin/applications", headers=auth("badward"))
+    assert res.status_code == 403
+    assert "ward that is not on the official list" in res.json()["detail"]
+    # Case and punctuation differences in the assignment are fine
+    repo.add_user("lower", role="ward", state="Kano", lga="nassarawa", ward="hotoro-NORTH")
     assert client.get("/api/admin/applications", headers=auth("lower")).status_code == 200
 
 
@@ -196,23 +226,52 @@ def test_duplicate_race_is_a_409_not_a_503(client, repo, monkeypatch):
     assert not repo.files
 
 
-# --- Reference data ---------------------------------------------------------------------------
+# --- Reference data (GRID3 NGA Operational Wards v4.0) -----------------------------------------
 
 
-def test_lga_list_covers_every_state_with_official_counts():
+def test_geo_list_covers_every_state_with_grid3_counts():
     data = lgas_by_state()
     assert tuple(data) == c.NORTHERN_STATES
     assert sum(len(v) for v in data.values()) == 419
     assert len(data["Kano"]) == 44 and len(data["FCT Abuja"]) == 6
+    wards = {(s, lga): wards_by_lga(s, lga) for s, lgas in data.items() for lga in lgas}
+    assert sum(len(w) for w in wards.values()) == 4841
+    assert len(wards["Kano", "Nassarawa"]) == 11
     for lgas in data.values():
         assert len({geo_key(lga) for lga in lgas}) == len(lgas)  # keys never collide
+    for names in wards.values():
+        assert names and len({geo_key(w) for w in names}) == len(names)
+    meta = geo_data()["meta"]
+    assert meta["licence"] == "CC BY-SA 4.0" and "GRID3" in meta["dataset"]
+
+
+def test_lga_aliases_resolve_to_one_lga():
     assert canonical_lga("Kano", "KANO municipal") == "Kano Municipal"
     assert canonical_lga("Kaduna", "Nasarawa") is None
+    # Every LGA spelling the portal used before GRID3 still resolves.
+    for state, old in [
+        ("Kano", "Nasarawa"),
+        ("Kano", "Garun Mallam"),
+        ("FCT Abuja", "Abuja Municipal"),
+        ("Adamawa", "Gayuk"),
+        ("Benue", "Otukpo"),
+        ("Taraba", "Kumi"),
+        ("Sokoto", "Wamako"),
+        ("Jigawa", "Biriniwa"),
+        ("Gombe", "Shongom"),
+    ]:
+        assert canonical_lga(state, old) is not None, (state, old)
+    assert set(lga_match_keys("Kano", "Nassarawa")) == {"nassarawa", "nasarawa"}
+    for state, aliases in geo_data()["lga_aliases"].items():
+        for alias, lga in aliases.items():
+            assert canonical_lga(state, alias) == lga
+    assert canonical_ward("Kano", "Nasarawa", "tudun-wada") == "Tudun Wada"
+    assert canonical_ward("Kano", "Nasarawa", "Wuse") is None
 
 
-def test_frontend_copy_of_lga_list_matches():
-    frontend = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "lgas.json"
+def test_frontend_copy_of_geo_list_matches():
+    frontend = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "geo.json"
     if not frontend.exists():  # backend-only checkout
         pytest.skip("frontend not present")
-    backend = Path(__file__).resolve().parents[1] / "app" / "lgas.json"
+    backend = Path(__file__).resolve().parents[1] / "app" / "geo.json"
     assert json.loads(frontend.read_text()) == json.loads(backend.read_text())

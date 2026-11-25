@@ -10,6 +10,7 @@ import {
   GENDERS,
   ID_TYPES,
   LGAS,
+  wardsFor,
   MIN_BUSINESS_WORDS,
   OCCUPATIONS,
   REFERRAL_SOURCES,
@@ -58,6 +59,7 @@ export default function ApplyPage() {
   const [message, setMessage] = useState("");
   const [words, setWords] = useState(0);
   const [state, setState] = useState("");
+  const [lga, setLga] = useState("");
 
   if (me?.application) {
     return (
@@ -141,6 +143,7 @@ export default function ApplyPage() {
       setMessage(`Application submitted. Reference: ${res.reference}`);
       formEl.reset();
       setState("");
+      setLga("");
       await refresh();
       router.push("/status");
     } catch (err) {
@@ -179,7 +182,15 @@ export default function ApplyPage() {
         <div className="grid">
           <label>
             State of residence
-            <select name="state" required value={state} onChange={(e) => setState(e.target.value)}>
+            <select
+              name="state"
+              required
+              value={state}
+              onChange={(e) => {
+                setState(e.target.value);
+                setLga("");
+              }}
+            >
               <option value="" disabled>
                 Select…
               </option>
@@ -191,7 +202,7 @@ export default function ApplyPage() {
           <label>
             Local Government Area
             {/* Reviewers are matched by LGA, so it comes from the official list for the state. */}
-            <select name="lga" required defaultValue="" key={state} disabled={!state}>
+            <select name="lga" required value={lga} onChange={(e) => setLga(e.target.value)} disabled={!state}>
               <option value="" disabled>
                 {state ? "Select…" : "Choose your state first"}
               </option>
@@ -200,8 +211,23 @@ export default function ApplyPage() {
               ))}
             </select>
           </label>
-          <Field label="Ward" name="ward" minLength={2} maxLength={100} />
+          <label>
+            Ward
+            {/* Reviewers are matched by ward too, so it comes from the official list for the LGA. */}
+            <select name="ward" required defaultValue="" key={`${state}/${lga}`} disabled={!lga}>
+              <option value="" disabled>
+                {lga ? "Select…" : "Choose your LGA first"}
+              </option>
+              {wardsFor(state, lga).map((w) => (
+                <option key={w}>{w}</option>
+              ))}
+            </select>
+          </label>
         </div>
+        <p className="fine">
+          LGA and ward lists: GRID3 NGA Operational Wards v4.0 (CIESIN, Columbia University), CC BY-SA 4.0.{" "}
+          <Link href="/credits#location-data">Data credits</Link>
+        </p>
 
         <h2>Education &amp; enterprise</h2>
         <div className="grid">

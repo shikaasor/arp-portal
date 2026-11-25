@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, get_settings
 from app.deps import get_repository
-from app.geo import geo_key
+from app.geo import geo_key, lga_match_keys
 from app.main import create_app
 from app.repository import ApplicationFilter, AuthUser
 
@@ -70,10 +70,8 @@ class FakeRepo:
             for a in self.applications.values()
             if all(not getattr(f, k) or a[k] == getattr(f, k) for k in ("state", "stage"))
             # mirrors the generated lga_key / ward_key columns
-            and all(
-                not getattr(f, k) or geo_key(a[k]) == geo_key(getattr(f, k))
-                for k in ("lga", "ward")
-            )
+            and (not f.lga or geo_key(a["lga"]) in lga_match_keys(f.state, f.lga))
+            and (not f.ward or geo_key(a["ward"]) == geo_key(f.ward))
             and (not f.search or f.search.lower() in (a["full_name"] + a["reference"]).lower())
         ]
         return rows[f.offset : f.offset + f.limit], len(rows)
@@ -157,7 +155,7 @@ def valid_details(**overrides: Any) -> dict[str, Any]:
         "phone": "+2348012345678",
         "address": "12 Ahmadu Bello Way",
         "state": "Kano",
-        "lga": "Nasarawa",
+        "lga": "Nassarawa",
         "ward": "Gama",
         "education": "HND / Bachelor’s Degree",
         "occupation": "Self-employed / Business Owner",

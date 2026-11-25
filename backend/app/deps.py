@@ -7,7 +7,7 @@ from fastapi import Depends, Header, HTTPException, status
 
 from . import constants as c
 from .config import Settings, get_settings
-from .geo import canonical_lga
+from .geo import canonical_lga, canonical_ward
 from .repository import AuthUser, Repository, SupabaseRepository
 
 
@@ -84,6 +84,16 @@ def require_reviewer(user: CurrentUser = Depends(get_current_user)) -> CurrentUs
                 detail="Your reviewer assignment names an LGA that is not on the official list.",
             )
         user.lga = lga
+    if user.role == c.ROLE_WARD:
+        # Same for the ward: it must be one of that LGA's wards (case and punctuation ignored).
+        ward = canonical_ward(user.state, user.lga, user.ward)
+        if ward is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Your reviewer assignment names a ward that is not on the official list "
+                "for its LGA.",
+            )
+        user.ward = ward
     return user
 
 

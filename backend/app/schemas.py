@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from . import constants as c
-from .geo import canonical_lga, geo_key, tidy
+from .geo import canonical_lga, canonical_ward
 
 PHONE_RE = re.compile(r"^\+?[0-9][0-9\s\-()]{6,19}$")
 NIN_RE = re.compile(r"^\d{11}$")
@@ -105,15 +105,15 @@ class ApplicationDetails(BaseModel):
 
     @model_validator(mode="after")
     def _location(self) -> "ApplicationDetails":
-        # Reviewers are matched to applications by LGA and ward, so the LGA must be an official
-        # one (stored with its canonical spelling) and the ward must contain real characters.
+        # Reviewers are matched to applications by LGA and ward, so both must come from the
+        # official lists (GRID3) and are stored with their canonical spelling.
         lga = canonical_lga(self.state, self.lga)
         if lga is None:
             raise ValueError(f"Select a Local Government Area in {self.state}.")
-        self.lga = lga
-        self.ward = tidy(self.ward)
-        if len(geo_key(self.ward)) < 2:
-            raise ValueError("Enter your ward.")
+        ward = canonical_ward(self.state, lga, self.ward)
+        if ward is None:
+            raise ValueError(f"Select a ward in {lga}.")
+        self.lga, self.ward = lga, ward
         return self
 
     @model_validator(mode="after")

@@ -35,8 +35,11 @@ same commit. `/api` belongs to FastAPI only, and CI fails if either side breaks 
   history and reviewer feedback. When a reviewer requests more information, the applicant
   replies from the status page (optionally with replacement documents) and the application
   goes back to the stage that asked.
-- **Location matching**: applicants pick their LGA from the official list for their state, and
-  reviewers are matched by LGA and ward ignoring case, spacing and punctuation.
+- **Location matching**: applicants pick their LGA and then their ward from dropdowns built from
+  [GRID3 NGA Operational Wards v4.0](https://data.grid3.org/datasets/GRID3::grid3-nga-operational-wards-v4-0/about),
+  so both are stored with one spelling. Reviewers are matched by LGA and ward ignoring case,
+  spacing and punctuation, and an LGA also matches its other common spellings (see
+  [Location data](#location-data)).
 - **One application per person**: an identification number (NIN or passport) can only be used
   once, enforced by the API and a unique index.
 - **Review workspace** limited by role:
@@ -58,6 +61,7 @@ frontend/              Next.js app            → service `web`
 backend/               FastAPI app            → service `api` (entrypoint app.main:app)
   tests/               pytest suite (incl. routing-contract tests)
   Dockerfile           portable fallback (tested in CI)
+scripts/build_geo.py   Rebuilds the state/LGA/ward list (geo.json) from GRID3
 supabase/migrations/   SQL migrations (source of truth for the database)
 supabase/snippets/     Handy SQL (e.g. assigning reviewer roles)
 supabase/tests/        Migration assertions run in CI
@@ -149,6 +153,31 @@ Reviewers sign up like anyone else. A Supabase admin then promotes them (see
 update public.profiles set role = 'state', state = 'Kano' where email = 'reviewer@example.org';
 ```
 
+## Location data
+
+The state, LGA and ward lists come from **GRID3 NGA – Operational Wards v4.0** (Center for
+Integrated Earth System Information (CIESIN), Columbia University, 2026;
+[doi:10.7916/3v3g-f998](https://doi.org/10.7916/3v3g-f998)), licensed
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The site credits it on the
+application form and on `/credits#location-data`; keep that credit if you change either page.
+
+`backend/app/geo.json` and `frontend/src/lib/geo.json` are identical copies (a backend test
+checks this): `{state: {code, lgas: {lga: [wards]}}}`, plus `lga_aliases` (other spellings that
+resolve to an LGA) and `meta` (source, licence, retrieval date, counts). GRID3 publishes no LGA or
+ward codes, so names are the keys. Current counts: 20 states, 419 LGAs, 4,841 wards.
+
+To refresh after a GRID3 update (for example the December update for Benue, Plateau and Taraba,
+which still use older ward boundaries in v4.0):
+
+```bash
+python3 scripts/build_geo.py   # fetches from GRID3's feature service, writes both copies
+```
+
+Update `SERVICE` in the script if GRID3 publishes the new version under a new address. Earlier
+portal spellings that GRID3 doesn't list as alternatives live in `scripts/geo_aliases.json`;
+add one there if a rename would strand existing applications or reviewer assignments. Then run
+the tests, which pin the counts.
+
 ## Before accepting real applications
 
 - [ ] Publish a privacy notice and retention schedule (NDPA 2023). Confirm the legal basis for
@@ -161,4 +190,5 @@ update public.profiles set role = 'state', state = 'Kano' where email = 'reviewe
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The location lists (`geo.json`) are derived from GRID3 data and
+are shared under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) instead.

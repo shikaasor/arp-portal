@@ -1,0 +1,7 @@
+{
+ "_comment": "Earlier portal spellings that GRID3 does not list as alternative names. Each maps to the GRID3 LGA name in that state, so applications and reviewer assignments saved before the switch still match.",
+ "Adamawa": {"Gayuk": "Guyuk"},
+ "Benue": {"Otukpo": "Oturkpo"},
+ "Kano": {"Garun Mallam": "Garum Mallam"},
+ "Taraba": {"Kumi": "Kurmi"}
+}

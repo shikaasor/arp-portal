@@ -1,4 +1,4 @@
-import lgaData from "./lgas.json";
+import geo from "./geo.json";
 
 // Keep in sync with backend/app/constants.py (the API validates every value).
 export const STATES = [
@@ -7,8 +7,27 @@ export const STATES = [
   "Zamfara", "FCT Abuja",
 ] as const;
 
-/** Official LGAs per state. Identical copy of backend/app/lgas.json (a backend test checks this). */
-export const LGAS: Record<string, readonly string[]> = lgaData;
+type GeoData = {
+  meta: { dataset: string; url: string; doi: string; licence: string; licence_url: string; retrieved: string };
+  states: Record<string, { code: string; lgas: Record<string, readonly string[]> }>;
+};
+
+/**
+ * States, LGAs and wards from GRID3 NGA Operational Wards v4.0 (CC BY-SA 4.0, credited on the
+ * site). Identical copy of backend/app/geo.json, built by scripts/build_geo.py; a backend test
+ * checks the two match.
+ */
+export const GEO = geo as GeoData;
+
+/** Official LGAs per state. */
+export const LGAS: Record<string, readonly string[]> = Object.fromEntries(
+  Object.entries(GEO.states).map(([state, info]) => [state, Object.keys(info.lgas)]),
+);
+
+/** Official wards of an LGA (empty until both are chosen). */
+export function wardsFor(state: string, lga: string): readonly string[] {
+  return GEO.states[state]?.lgas[lga] ?? [];
+}
 
 export const GENDERS = ["Male", "Female"] as const;
 

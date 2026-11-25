@@ -8,7 +8,7 @@ from typing import Any, Protocol
 from supabase import Client, create_client
 
 from .config import Settings
-from .geo import geo_key
+from .geo import geo_key, lga_match_keys
 
 APPLICATION_COLUMNS = (
     "id,reference,user_id,full_name,email,phone,gender,date_of_birth,address,state,lga,ward,"
@@ -134,10 +134,11 @@ class SupabaseRepository:
             if value:
                 q = q.eq(column, value)
         # LGA and ward match on generated key columns (case, spacing and punctuation ignored).
-        for column in ("lga", "ward"):
-            value = getattr(f, column)
-            if value:
-                q = q.eq(f"{column}_key", geo_key(value))
+        # An LGA also matches rows saved under its other accepted spellings.
+        if f.lga:
+            q = q.in_("lga_key", list(lga_match_keys(f.state, f.lga)))
+        if f.ward:
+            q = q.eq("ward_key", geo_key(f.ward))
         if f.search:
             term = f.search.replace(",", " ").replace("(", " ").replace(")", " ").strip()
             if term:

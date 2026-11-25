@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from .. import constants as c
 from ..config import Settings, get_settings
 from ..deps import CurrentUser, get_repository, require_national, require_reviewer
-from ..geo import geo_key
+from ..geo import geo_key, lga_match_keys
 from ..repository import ApplicationFilter, Repository
 from ..schemas import AdminApplication, AdminList, KycResponse, ReviewRequest
 
@@ -19,7 +19,9 @@ def in_scope(user: CurrentUser, record: dict) -> bool:
         return True
     if record["state"] != user.state:
         return False
-    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and geo_key(record["lga"]) != geo_key(user.lga):
+    if user.role in (c.ROLE_LGA, c.ROLE_WARD) and geo_key(record["lga"]) not in lga_match_keys(
+        user.state, user.lga
+    ):
         return False
     return not (user.role == c.ROLE_WARD and geo_key(record["ward"]) != geo_key(user.ward))
 

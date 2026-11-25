@@ -3,6 +3,7 @@ import { Gallery } from "@/components/Gallery";
 import { Img } from "@/components/Img";
 import { PageBanner } from "@/components/PageBanner";
 import { images, type ImageKey, type SiteImage } from "@/lib/images.generated";
+import { GEO } from "@/lib/options";
 
 export const metadata: Metadata = { title: "Gallery & photo credits" };
 
@@ -73,6 +74,32 @@ export default function Credits() {
         <p className="muted">
           Decorative patterns are original artwork for the Arewa Revival Project. Programme artwork and the ARP logo are
           © Arewa Revival Project.
+        </p>
+      </section>
+
+      <section className="section creditsList" id="location-data">
+        <div className="sectionHead">
+          <p className="eyebrow">Open data</p>
+          <h2>Location data</h2>
+        </div>
+        <p>
+          The state, Local Government Area and ward lists on the application form come from{" "}
+          <a href={GEO.meta.doi} target="_blank" rel="noopener noreferrer">
+            {GEO.meta.dataset}
+          </a>{" "}
+          by the Center for Integrated Earth System Information (CIESIN), Columbia University (2026), published by{" "}
+          <a href={GEO.meta.url} target="_blank" rel="noopener noreferrer">
+            GRID3
+          </a>{" "}
+          and licensed{" "}
+          <a href={GEO.meta.licence_url} target="_blank" rel="noopener noreferrer license">
+            {GEO.meta.licence}
+          </a>
+          .
+        </p>
+        <p className="muted">
+          We use the names only (no boundaries), as retrieved on {GEO.meta.retrieved}, with spacing tidied and the
+          capital listed as &ldquo;FCT Abuja&rdquo;. Our copy of the list is shared under the same licence.
         </p>
       </section>
     </>

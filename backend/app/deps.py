@@ -7,6 +7,7 @@ from fastapi import Depends, Header, HTTPException, status
 
 from . import constants as c
 from .config import Settings, get_settings
+from .geo import canonical_lga, canonical_ward
 from .repository import AuthUser, Repository, SupabaseRepository
 
 
@@ -73,6 +74,26 @@ def require_reviewer(user: CurrentUser = Depends(get_current_user)) -> CurrentUs
     }.get(user.role, ())
     if any(not getattr(user, field) for field in needed):
         raise HTTPException(status_code=403, detail="Your reviewer assignment is incomplete.")
+    if user.role in (c.ROLE_LGA, c.ROLE_WARD):
+        # Applications store the official LGA spelling, so a misspelt assignment would silently
+        # match nothing. Refuse it loudly instead, so whoever assigned the role can fix it.
+        lga = canonical_lga(user.state, user.lga)
+        if lga is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Your reviewer assignment names an LGA that is not on the official list.",
+            )
+        user.lga = lga
+    if user.role == c.ROLE_WARD:
+        # Same for the ward: it must be one of that LGA's wards (case and punctuation ignored).
+        ward = canonical_ward(user.state, user.lga, user.ward)
+        if ward is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Your reviewer assignment names a ward that is not on the official list "
+                "for its LGA.",
+            )
+        user.ward = ward
     return user
 
 

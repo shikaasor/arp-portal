@@ -419,3 +419,7 @@ dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   dl { grid-template-columns: 1fr; }
   .programmeTable th, .programmeTable td { padding: 12px 14px; }
 }
+
+/* Applicant reply to a request for more information (status page) */
+.respondForm { display: grid; gap: 12px; margin: 20px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
+.respondForm h3 { margin: 0; }

@@ -93,6 +93,9 @@ NEXT_STAGE: Final = {
     STAGE_WARD: STAGE_APPROVED,
 }
 
+# Applicant reply to a "request information" review action.
+ACTION_RESPONDED: Final = "responded"
+
 ROLE_APPLICANT: Final = "applicant"
 ROLE_WARD: Final = "ward"
 ROLE_LGA: Final = "lga"

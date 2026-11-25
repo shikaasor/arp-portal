@@ -8,12 +8,17 @@ from typing import Any, Protocol
 from supabase import Client, create_client
 
 from .config import Settings
+from .geo import geo_key, lga_match_keys
 
 APPLICATION_COLUMNS = (
     "id,reference,user_id,full_name,email,phone,gender,date_of_birth,address,state,lga,ward,"
-    "education,occupation,sector,has_business,business_idea,motivation,referral_source,"
-    "stage,feedback,created_at,updated_at"
+    "ward_unlisted,education,occupation,sector,has_business,business_idea,motivation,referral_source,"
+    "stage,feedback,returns_to_stage,applicant_response,created_at,updated_at"
 )
+
+
+class DuplicateIdentificationError(Exception):
+    """Another application already uses this identification number."""
 
 
 @dataclass
@@ -45,6 +50,8 @@ class Repository(Protocol):
     def add_event(self, event: dict[str, Any]) -> None: ...
     def list_events(self, application_id: str) -> list[dict[str, Any]]: ...
     def get_kyc(self, application_id: str) -> dict[str, Any] | None: ...
+    def update_kyc(self, application_id: str, values: dict[str, Any]) -> None: ...
+    def identification_exists(self, identification_type: str, number: str) -> bool: ...
     def create_signed_upload(self, path: str) -> dict[str, str]: ...
     def download_file(self, path: str) -> bytes | None: ...
     def delete_files(self, paths: list[str]) -> None: ...
@@ -112,17 +119,26 @@ class SupabaseRepository:
             self.client.table("application_kyc").insert(
                 {**kyc, "application_id": created["id"]}
             ).execute()
-        except Exception:
+        except Exception as exc:
             self.client.table("applications").delete().eq("id", created["id"]).execute()
+            # 23505 = unique_violation: the same NIN/passport raced in from another account.
+            if getattr(exc, "code", None) == "23505":
+                raise DuplicateIdentificationError from exc
             raise
         return created
 
     def list_applications(self, f: ApplicationFilter) -> tuple[list[dict[str, Any]], int]:
         q = self.client.table("applications").select(APPLICATION_COLUMNS, count="exact")
-        for column in ("state", "lga", "ward", "stage"):
+        for column in ("state", "stage"):
             value = getattr(f, column)
             if value:
                 q = q.eq(column, value)
+        # LGA and ward match on generated key columns (case, spacing and punctuation ignored).
+        # An LGA also matches rows saved under its other accepted spellings.
+        if f.lga:
+            q = q.in_("lga_key", list(lga_match_keys(f.state, f.lga)))
+        if f.ward:
+            q = q.eq("ward_key", geo_key(f.ward))
         if f.search:
             term = f.search.replace(",", " ").replace("(", " ").replace(")", " ").strip()
             if term:
@@ -161,6 +177,22 @@ class SupabaseRepository:
             .execute()
         )
         return res.data[0] if res.data else None
+
+    def update_kyc(self, application_id: str, values: dict[str, Any]) -> None:
+        self.client.table("application_kyc").update(values).eq(
+            "application_id", application_id
+        ).execute()
+
+    def identification_exists(self, identification_type: str, number: str) -> bool:
+        res = (
+            self.client.table("application_kyc")
+            .select("application_id")
+            .eq("identification_type", identification_type)
+            .eq("identification_number", number)
+            .limit(1)
+            .execute()
+        )
+        return bool(res.data)
 
     # --- storage ----------------------------------------------------------------------------
     def create_signed_upload(self, path: str) -> dict[str, str]:

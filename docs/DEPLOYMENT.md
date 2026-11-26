@@ -63,8 +63,9 @@ of up to 5 MB each. So the files never pass through the API:
    **Apply new migrations before deploying the code that needs them**: the API selects the
    columns they add, so an older database makes every application request fail.
 3. **Authentication → URL configuration**
-   - Site URL: `https://arp-portal.vercel.app` (switch it to the custom domain later).
-   - Redirect URLs: `https://arp-portal.vercel.app/**`. For PR previews, also add
+   - Site URL: `https://arewarevivalproject.org`.
+   - Redirect URLs: `https://arewarevivalproject.org/**`, `https://www.arewarevivalproject.org/**`
+     and `https://arp-portal.vercel.app/**`. For PR previews, also add
      `https://arp-portal-*-<your-vercel-team>.vercel.app/**`.
 4. **Authentication → Sign In / Providers** (under *Configuration*) → **Email**: keep
    "Confirm email" **on**.
@@ -141,15 +142,47 @@ this one works, and remove the old `API_ORIGIN` variable.
 these checks: `Frontend · routes, lint, typecheck, test, build`, `Backend · lint, test`, and
 `Supabase · validate migrations`.
 
-## 4. Custom domain: `arewarevivalproject.org` on Cloudflare
+## 4. Custom domain and email: `arewarevivalproject.org`
 
-1. In the project: **Settings → Domains**, add `arewarevivalproject.org` and
-   `www.arewarevivalproject.org`.
-2. In Cloudflare DNS, add the records Vercel shows, with the proxy **off (DNS only, grey
-   cloud)**. They're typically an apex `A` record to Vercel's IP and `www CNAME cname.vercel-dns.com`.
-   Always use the values your dashboard shows. Don't touch MX, SPF, DKIM or DMARC records.
+The domain's DNS is managed at its registrar. The site is served by Vercel; mail for
+`info@arewarevivalproject.org` is handled by the mailbox provider. Add only the records
+below and leave the provider's existing mail records (MX, SPF, DKIM, DMARC) in place.
+
+### Website
+
+1. In the Vercel project: **Settings → Domains**, add `arewarevivalproject.org` and
+   `www.arewarevivalproject.org`. Make the apex the primary domain and let `www` redirect to it.
+2. At the registrar's DNS settings, add the records Vercel shows. They're typically an apex
+   `A` record (`@`) to Vercel's IP and `www` `CNAME` to Vercel's target. Always use the values
+   your dashboard shows. If a parking-page `A` or `CNAME` record already exists for `@` or
+   `www`, replace that one only. Don't change the nameservers, which would drop the mail records.
 3. The API needs **no** domain of its own: `https://arewarevivalproject.org/api/*` is the API.
-4. Update the Supabase Site URL and redirect URLs, and `NEXT_PUBLIC_SITE_URL`.
+4. In Vercel, set `NEXT_PUBLIC_SITE_URL=https://arewarevivalproject.org` for Production, then
+   redeploy.
+5. In Supabase, **Authentication → URL configuration**: set the Site URL and redirect URLs as in
+   section 1, step 3.
+
+### Email (`info@arewarevivalproject.org`)
+
+Supabase's built-in mailer is for testing only: it sends a few messages an hour and only to
+team members. Real applicants need custom SMTP.
+
+1. **Authentication → Emails → SMTP Settings**: turn on custom SMTP and enter the mail
+   provider's SMTP host, port and username (`info@arewarevivalproject.org`) and the mailbox
+   password. Sender email `info@arewarevivalproject.org`, sender name `Arewa Revival Project`.
+   Alternatively, use a sending service such as Resend with the same sender address; it gives
+   you its own DNS records to add.
+2. **Authentication → Rate Limits**: raise the email limit to suit the expected sign-ups; it
+   starts low once custom SMTP is on.
+3. DNS records for delivery (check what the mail provider already created first; there must
+   be exactly **one** SPF record):
+   - **SPF:** a `TXT` record on `@` starting `v=spf1` that includes the mail provider (and the
+     sending service, if you use one), e.g. `v=spf1 include:<provider> ~all`.
+   - **DKIM:** the `TXT` or `CNAME` record(s) the provider shows for `<selector>._domainkey`.
+   - **DMARC:** a `TXT` record on `_dmarc`, starting with monitoring only:
+     `v=DMARC1; p=none; rua=mailto:info@arewarevivalproject.org`. Move to `p=quarantine` once
+     reports show mail passing SPF and DKIM.
+4. Send yourself a sign-up and a password reset, and check they arrive in the inbox, not spam.
 
 ## 5. Go-live checks
 

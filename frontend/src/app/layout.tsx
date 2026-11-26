@@ -2,13 +2,14 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Shell } from "@/components/Shell";
+import { config } from "@/lib/config";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-display" });
 const body = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(config.siteUrl),
   title: { default: "ARP | Empowerment Portal", template: "%s | ARP Empowerment Portal" },
   description:
     "Arewa Revival Project empowerment portal: apply for the proposed 5,000 Youth Global Entrepreneurship Initiative across the 19 Northern States.",

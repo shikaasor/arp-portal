@@ -123,7 +123,7 @@ deploys to production.
 Recommended: in **Settings → Branches**, protect `main` and require the `CI` checks to pass.
 
 See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for the full walkthrough, including the
-custom domain (`arewarevivalproject.org`) and Cloudflare DNS.
+custom domain (`arewarevivalproject.org`) and the email set-up for `info@arewarevivalproject.org`.
 
 ## Design & images
 
@@ -199,7 +199,7 @@ where ward_unlisted group by 1, 2, 3 order by 1, 2, 3;
       collecting NIN and passport data.
 - [ ] Turn on Supabase **CAPTCHA** (Auth → Bot protection) and set up custom SMTP so
       verification emails are delivered reliably.
-- [ ] Add rate limiting at the edge (Cloudflare rules) for `POST /api/applications`.
+- [ ] Add rate limiting at the edge (Vercel Firewall rules) for `POST /api/applications`.
 - [ ] Turn on Supabase backups/PITR, and set up error monitoring (e.g. Sentry) for both services.
 - [ ] Test access with separate applicant, ward, LGA, state and national accounts.
 

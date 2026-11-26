@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { config } from "@/lib/config";
 import { AuthDialog } from "./AuthDialog";
 import { useAuth } from "./AuthProvider";
 import { Img } from "./Img";
@@ -117,6 +118,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <ul>
               <li><Link href="/credits">Gallery &amp; photo credits</Link></li>
               <li><a href="/api/docs">API documentation</a></li>
+              <li><a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a></li>
             </ul>
             <p className="fine">
               This is a proposed programme. Applying does not guarantee selection or company formation.
